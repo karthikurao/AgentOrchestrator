@@ -103,10 +103,31 @@ def display_results(state: dict) -> None:
         border_style="cyan",
     ))
 
+    # Show summary stats
+    success_count = sum(1 for r in results if r.get("status") == "success")
+    error_count = sum(1 for r in results if r.get("status") == "error")
+    summary_table = Table(box=box.SIMPLE, border_style="dim")
+    summary_table.add_column("Metric", style="bold")
+    summary_table.add_column("Value")
+    summary_table.add_row("Agents Executed", str(len(results)))
+    summary_table.add_row("Succeeded", f"[green]{success_count}[/green]")
+    if error_count:
+        summary_table.add_row("Failed", f"[red]{error_count}[/red]")
+    console.print(summary_table)
+
     # Show each agent's output
     for result in results:
         status_icon = "✅" if result["status"] == "success" else "❌"
         border = "green" if result["status"] == "success" else "red"
+        metadata = result.get("metadata", {})
+
+        # Build metadata subtitle
+        meta_parts = []
+        if "execution_time_seconds" in metadata:
+            meta_parts.append(f"⏱ {metadata['execution_time_seconds']}s")
+        if "tool_iterations" in metadata:
+            meta_parts.append(f"🔧 {metadata['tool_iterations']} tool iterations")
+        meta_str = f"  ({' | '.join(meta_parts)})" if meta_parts else ""
 
         # Task description panel
         console.print(Panel(
@@ -119,7 +140,7 @@ def display_results(state: dict) -> None:
         # Result panel
         console.print(Panel(
             Markdown(result["result"]),
-            title=f"{status_icon} {result['agent_name']} Agent — Result",
+            title=f"{status_icon} {result['agent_name']} Agent{meta_str}",
             border_style=border,
             box=box.DOUBLE,
         ))
