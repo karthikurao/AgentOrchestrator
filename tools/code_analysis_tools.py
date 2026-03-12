@@ -3,6 +3,7 @@
 import ast
 import os
 import re
+
 from langchain_core.tools import tool
 
 
@@ -17,7 +18,7 @@ def analyze_complexity(file_path: str) -> str:
         from radon.complexity import cc_visit
         from radon.metrics import mi_visit
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             source = f.read()
 
         # Cyclomatic complexity
@@ -26,12 +27,17 @@ def analyze_complexity(file_path: str) -> str:
 
         total_complexity = 0
         for block in sorted(blocks, key=lambda b: b.complexity, reverse=True):
-            rank = "A" if block.complexity <= 5 else "B" if block.complexity <= 10 else "C" if block.complexity <= 20 else "F"
-            indicator = "✅" if rank == "A" else "⚠️" if rank == "B" else "🔴"
-            lines.append(
-                f"- {indicator} {block.name} (line {block.lineno}): "
-                f"complexity={block.complexity} rank={rank}"
+            rank = (
+                "A"
+                if block.complexity <= 5
+                else "B"
+                if block.complexity <= 10
+                else "C"
+                if block.complexity <= 20
+                else "F"
             )
+            indicator = "✅" if rank == "A" else "⚠️" if rank == "B" else "🔴"
+            lines.append(f"- {indicator} {block.name} (line {block.lineno}): complexity={block.complexity} rank={rank}")
             total_complexity += block.complexity
 
         # Maintainability index
@@ -62,17 +68,20 @@ def find_imports(file_path: str) -> str:
         file_path: Path to the source file to analyze.
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             lines = f.readlines()
 
         imports = []
         for i, line in enumerate(lines, 1):
             stripped = line.strip()
-            if stripped.startswith(("import ", "from ")):
-                imports.append(f"  Line {i}: {stripped}")
-            elif stripped.startswith(("using ", "require(", "const ")) and ("import" in stripped or "require" in stripped):
-                imports.append(f"  Line {i}: {stripped}")
-            elif stripped.startswith("#include"):
+            if (
+                stripped.startswith(("import ", "from "))
+                or (
+                    stripped.startswith(("using ", "require(", "const "))
+                    and ("import" in stripped or "require" in stripped)
+                )
+                or stripped.startswith("#include")
+            ):
                 imports.append(f"  Line {i}: {stripped}")
 
         if imports:
@@ -92,7 +101,7 @@ def count_lines(file_path: str) -> str:
         file_path: Path to the file to analyze.
     """
     try:
-        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(file_path, encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
 
         total = len(lines)
@@ -124,7 +133,7 @@ def find_function_definitions(file_path: str) -> str:
         file_path: Path to the Python file to analyze.
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             source = f.read()
 
         tree = ast.parse(source, filename=file_path)
@@ -149,7 +158,9 @@ def find_function_definitions(file_path: str) -> str:
 
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 # Only top-level functions (not methods — those are listed under their class)
-                if not any(isinstance(parent, ast.ClassDef) for parent in ast.walk(tree) if node in getattr(parent, 'body', [])):
+                if not any(
+                    isinstance(parent, ast.ClassDef) for parent in ast.walk(tree) if node in getattr(parent, "body", [])
+                ):
                     pass  # handled below
 
         # Walk again for top-level functions only
@@ -219,7 +230,7 @@ def detect_code_smells(file_path: str) -> str:
         file_path: Path to the Python file to analyze.
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             source = f.read()
         lines = source.splitlines()
 
@@ -234,7 +245,9 @@ def detect_code_smells(file_path: str) -> str:
                 if length > 50:
                     smells.append(f"🔴 Long Method: `{node.name}` is {length} lines (line {node.lineno}-{end})")
                 elif length > 30:
-                    smells.append(f"⚠️ Moderately Long Method: `{node.name}` is {length} lines (line {node.lineno}-{end})")
+                    smells.append(
+                        f"⚠️ Moderately Long Method: `{node.name}` is {length} lines (line {node.lineno}-{end})"
+                    )
 
                 # Too many parameters (>5)
                 param_count = len(node.args.args) + len(node.args.kwonlyargs)
@@ -243,7 +256,9 @@ def detect_code_smells(file_path: str) -> str:
                 if node.args.kwarg:
                     param_count += 1
                 if param_count > 7:
-                    smells.append(f"🔴 Too Many Parameters: `{node.name}` has {param_count} parameters (line {node.lineno})")
+                    smells.append(
+                        f"🔴 Too Many Parameters: `{node.name}` has {param_count} parameters (line {node.lineno})"
+                    )
                 elif param_count > 5:
                     smells.append(f"⚠️ Many Parameters: `{node.name}` has {param_count} parameters (line {node.lineno})")
 
@@ -316,7 +331,7 @@ def analyze_type_hints(file_path: str) -> str:
         file_path: Path to the Python file to analyze.
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             source = f.read()
 
         tree = ast.parse(source, filename=file_path)
@@ -383,7 +398,7 @@ def analyze_dependency_security(file_path: str) -> str:
         file_path: Path to the dependency file (requirements.txt, package.json, Pipfile, pyproject.toml, etc.).
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         findings = []
@@ -404,16 +419,17 @@ def analyze_dependency_security(file_path: str) -> str:
                 # Check for known problematic patterns
                 pkg_lower = line.lower()
                 if "pyyaml" in pkg_lower:
-                    findings.append(f"💡 `PyYAML` found — ensure yaml.safe_load() is used, never yaml.load()")
+                    findings.append("💡 `PyYAML` found — ensure yaml.safe_load() is used, never yaml.load()")
                 if "requests" in pkg_lower and "urllib3" not in pkg_lower:
-                    findings.append(f"💡 `requests` found — ensure SSL verification is not disabled (verify=True)")
+                    findings.append("💡 `requests` found — ensure SSL verification is not disabled (verify=True)")
                 if "flask" in pkg_lower:
-                    findings.append(f"💡 `Flask` found — ensure debug=False in production, check CORS config")
+                    findings.append("💡 `Flask` found — ensure debug=False in production, check CORS config")
                 if "django" in pkg_lower:
-                    findings.append(f"💡 `Django` found — ensure DEBUG=False in production, check ALLOWED_HOSTS")
+                    findings.append("💡 `Django` found — ensure DEBUG=False in production, check ALLOWED_HOSTS")
 
         elif basename == "package.json":
             import json
+
             try:
                 pkg = json.loads(content)
                 deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
@@ -425,7 +441,9 @@ def analyze_dependency_security(file_path: str) -> str:
             except json.JSONDecodeError:
                 findings.append("🔴 Invalid JSON in package.json")
         else:
-            findings.append(f"💡 Dependency file type recognized but detailed scanning not yet supported for `{basename}`")
+            findings.append(
+                f"💡 Dependency file type recognized but detailed scanning not yet supported for `{basename}`"
+            )
             findings.append(f"   File content preview:\n{content[:500]}")
 
         if findings:

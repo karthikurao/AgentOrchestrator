@@ -5,8 +5,8 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any
 
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 
 from config.settings import settings
 
@@ -104,10 +104,12 @@ class BaseAgent(ABC):
             "6. Any assumptions you are making\n\n"
             "Be specific and actionable — this description tells the user what work is being performed."
         )
-        response = self._call_llm_with_retry([
-            SystemMessage(content=self.get_system_prompt()),
-            HumanMessage(content=description_prompt),
-        ])
+        response = self._call_llm_with_retry(
+            [
+                SystemMessage(content=self.get_system_prompt()),
+                HumanMessage(content=description_prompt),
+            ]
+        )
         return response.content
 
     # ------------------------------------------------------------------
@@ -172,10 +174,12 @@ class BaseAgent(ABC):
             if hasattr(response, "tool_calls") and response.tool_calls:
                 for tool_call in response.tool_calls:
                     tool_result = self._execute_tool_call(tool_call)
-                    messages.append(ToolMessage(
-                        content=tool_result,
-                        tool_call_id=tool_call["id"],
-                    ))
+                    messages.append(
+                        ToolMessage(
+                            content=tool_result,
+                            tool_call_id=tool_call["id"],
+                        )
+                    )
                 # Accumulate any intermediate text
                 if response.content:
                     final_text += response.content + "\n"
@@ -238,14 +242,16 @@ class BaseAgent(ABC):
                 last_error = e
                 logger.warning(
                     "LLM call attempt %d/%d failed for %s: %s",
-                    attempt, RETRY_ATTEMPTS, self.name, e,
+                    attempt,
+                    RETRY_ATTEMPTS,
+                    self.name,
+                    e,
                 )
                 if attempt < RETRY_ATTEMPTS:
                     time.sleep(RETRY_DELAY_SECONDS * attempt)
 
         raise RuntimeError(
-            f"{self.name} agent: LLM call failed after {RETRY_ATTEMPTS} attempts. "
-            f"Last error: {last_error}"
+            f"{self.name} agent: LLM call failed after {RETRY_ATTEMPTS} attempts. Last error: {last_error}"
         )
 
     # ------------------------------------------------------------------
@@ -253,7 +259,11 @@ class BaseAgent(ABC):
     # ------------------------------------------------------------------
 
     def format_output(
-        self, task_description: str, result: str, status: str, metadata: dict | None = None,
+        self,
+        task_description: str,
+        result: str,
+        status: str,
+        metadata: dict | None = None,
     ) -> dict[str, Any]:
         """Format the agent's output into a consistent structure with severity scoring."""
         severity = self._assess_severity(result)

@@ -4,12 +4,15 @@ from typing import Any
 
 from agents.base_agent import BaseAgent
 from prompts.performance_prompt import PERFORMANCE_SYSTEM_PROMPT
-from tools.file_tools import read_file, read_multiple_files, list_directory, search_in_files
-from tools.git_tools import git_diff, git_log
 from tools.code_analysis_tools import (
-    analyze_complexity, count_lines, find_imports, find_function_definitions,
+    analyze_complexity,
+    count_lines,
     detect_code_smells,
+    find_function_definitions,
+    find_imports,
 )
+from tools.file_tools import list_directory, read_file, read_multiple_files, search_in_files
+from tools.git_tools import git_diff, git_log
 
 
 class PerformanceAgent(BaseAgent):
@@ -33,10 +36,17 @@ class PerformanceAgent(BaseAgent):
             agent_id="performance",
             name="Performance",
             tools=[
-                read_file, read_multiple_files, list_directory, search_in_files,
-                git_diff, git_log,
-                analyze_complexity, count_lines, find_imports,
-                find_function_definitions, detect_code_smells,
+                read_file,
+                read_multiple_files,
+                list_directory,
+                search_in_files,
+                git_diff,
+                git_log,
+                analyze_complexity,
+                count_lines,
+                find_imports,
+                find_function_definitions,
+                detect_code_smells,
             ],
         )
 

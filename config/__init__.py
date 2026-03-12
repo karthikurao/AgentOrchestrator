@@ -1,4 +1,4 @@
-from config.settings import Settings
 from config.agent_registry import AgentRegistry
+from config.settings import Settings
 
-__all__ = ["Settings", "AgentRegistry"]
+__all__ = ["AgentRegistry", "Settings"]

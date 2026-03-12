@@ -8,25 +8,24 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, TypedDict
 
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.graph import StateGraph, END
+from langchain_openai import ChatOpenAI
+from langgraph.graph import END, StateGraph
 
-from config.settings import settings
-from config.agent_registry import AgentRegistry
-from prompts.orchestrator_prompt import ORCHESTRATOR_SYSTEM_PROMPT
-
-from agents.code_reviewer import CodeReviewerAgent
-from agents.bug_analyzer import BugAnalyzerAgent
 from agents.architecture import ArchitectureAgent
-from agents.testing import TestingAgent
-from agents.security import SecurityAgent
-from agents.documentation import DocumentationAgent
-from agents.refactoring import RefactoringAgent
-from agents.devops import DevOpsAgent
-from agents.performance import PerformanceAgent
-from agents.exploit_analyzer import ExploitAnalyzerAgent
+from agents.bug_analyzer import BugAnalyzerAgent
+from agents.code_reviewer import CodeReviewerAgent
 from agents.communication import AgentCommunicationBus
+from agents.devops import DevOpsAgent
+from agents.documentation import DocumentationAgent
+from agents.exploit_analyzer import ExploitAnalyzerAgent
+from agents.performance import PerformanceAgent
+from agents.refactoring import RefactoringAgent
+from agents.security import SecurityAgent
+from agents.testing import TestingAgent
+from config.agent_registry import AgentRegistry
+from config.settings import settings
+from prompts.orchestrator_prompt import ORCHESTRATOR_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +34,7 @@ ROUTING_RETRY_ATTEMPTS = 2
 
 class OrchestratorState(TypedDict):
     """State that flows through the LangGraph orchestration pipeline."""
+
     user_request: str
     routing_decision: dict[str, Any]
     agent_results: list[dict[str, Any]]
@@ -63,8 +63,15 @@ class OrchestratorAgent:
     """
 
     VALID_AGENT_IDS = {
-        "code_reviewer", "bug_analyzer", "architecture", "testing",
-        "security", "documentation", "refactoring", "devops", "performance",
+        "code_reviewer",
+        "bug_analyzer",
+        "architecture",
+        "testing",
+        "security",
+        "documentation",
+        "refactoring",
+        "devops",
+        "performance",
         "exploit_analyzer",
     }
 
@@ -111,10 +118,12 @@ class OrchestratorAgent:
         system_prompt = ORCHESTRATOR_SYSTEM_PROMPT.format(agent_registry=registry_summary)
 
         try:
-            response = self._llm.invoke([
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=task),
-            ])
+            response = self._llm.invoke(
+                [
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=task),
+                ]
+            )
             routing = self._extract_json(response.content)
             if routing and "assignments" in routing:
                 routing = self._validate_routing(routing)
@@ -194,14 +203,16 @@ class OrchestratorAgent:
 
         if not valid_assignments:
             # Fallback to code_reviewer if all agents were invalid
-            valid_assignments = [{
-                "agent_id": "code_reviewer",
-                "task": routing.get("analysis", "Analyze the request"),
-                "priority": 1,
-            }]
+            valid_assignments = [
+                {
+                    "agent_id": "code_reviewer",
+                    "task": routing.get("analysis", "Analyze the request"),
+                    "priority": 1,
+                }
+            ]
             routing["analysis"] = (
-                routing.get("analysis", "") +
-                " (Warning: Original routing had no valid agents — defaulting to code_reviewer)"
+                routing.get("analysis", "")
+                + " (Warning: Original routing had no valid agents — defaulting to code_reviewer)"
             )
 
         routing["assignments"] = valid_assignments
@@ -237,13 +248,15 @@ class OrchestratorAgent:
                 # If parsing failed, add a correction message for retry
                 if attempt < ROUTING_RETRY_ATTEMPTS:
                     messages.append(response)
-                    messages.append(HumanMessage(
-                        content=(
-                            "Your response was not valid JSON or was missing the 'assignments' key. "
-                            "Please respond with ONLY a valid JSON object in this exact format:\n"
-                            '{"analysis": "...", "assignments": [{"agent_id": "...", "task": "...", "priority": 1}]}'
+                    messages.append(
+                        HumanMessage(
+                            content=(
+                                "Your response was not valid JSON or was missing the 'assignments' key. "
+                                "Please respond with ONLY a valid JSON object in this exact format:\n"
+                                '{"analysis": "...", "assignments": [{"agent_id": "...", "task": "...", "priority": 1}]}'
+                            )
                         )
-                    ))
+                    )
                     logger.warning("Routing attempt %d failed, retrying with correction prompt", attempt)
             except Exception as e:
                 logger.error("Routing attempt %d raised %s: %s", attempt, type(e).__name__, e)
@@ -255,11 +268,13 @@ class OrchestratorAgent:
         return {
             "routing_decision": {
                 "analysis": "Could not determine optimal routing — defaulting to code review.",
-                "assignments": [{
-                    "agent_id": "code_reviewer",
-                    "task": state["user_request"],
-                    "priority": 1,
-                }],
+                "assignments": [
+                    {
+                        "agent_id": "code_reviewer",
+                        "task": state["user_request"],
+                        "priority": 1,
+                    }
+                ],
             }
         }
 
@@ -305,38 +320,31 @@ class OrchestratorAgent:
 
             if settings.parallel_execution and len(group) > 1:
                 # --- Parallel execution for this priority group ---
-                group_results = self._execute_group_parallel(
-                    group, state["user_request"], prior_results_context
-                )
+                group_results = self._execute_group_parallel(group, state["user_request"], prior_results_context)
             else:
                 # --- Sequential execution (single agent or parallel disabled) ---
-                group_results = self._execute_group_sequential(
-                    group, state["user_request"], prior_results_context
-                )
+                group_results = self._execute_group_sequential(group, state["user_request"], prior_results_context)
 
             group_elapsed = round(time.time() - group_start, 2)
-            agent_times = [
-                r.get("metadata", {}).get("execution_time_seconds", 0)
-                for r in group_results
-            ]
+            agent_times = [r.get("metadata", {}).get("execution_time_seconds", 0) for r in group_results]
             sequential_time = sum(agent_times)
 
-            parallel_meta["priority_groups"].append({
-                "priority": priority,
-                "agents": group_agent_ids,
-                "wall_time_seconds": group_elapsed,
-                "sequential_time_seconds": round(sequential_time, 2),
-                "parallel": settings.parallel_execution and len(group) > 1,
-            })
+            parallel_meta["priority_groups"].append(
+                {
+                    "priority": priority,
+                    "agents": group_agent_ids,
+                    "wall_time_seconds": group_elapsed,
+                    "sequential_time_seconds": round(sequential_time, 2),
+                    "parallel": settings.parallel_execution and len(group) > 1,
+                }
+            )
             parallel_meta["total_cpu_time_seconds"] += sequential_time
 
             # Accumulate results and build context for next group
             all_results.extend(group_results)
             for r in group_results:
                 if r.get("status") == "success":
-                    prior_results_context[r.get("agent_id", "unknown")] = (
-                        r.get("result", "")[:2000]
-                    )
+                    prior_results_context[r.get("agent_id", "unknown")] = r.get("result", "")[:2000]
 
         parallel_meta["total_wall_time_seconds"] = round(time.time() - overall_start, 2)
 
@@ -358,9 +366,7 @@ class OrchestratorAgent:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_assignment = {}
             for assignment in assignments:
-                future = executor.submit(
-                    self._run_single_agent, assignment, user_request, prior_context
-                )
+                future = executor.submit(self._run_single_agent, assignment, user_request, prior_context)
                 future_to_assignment[future] = assignment
 
             for future in as_completed(future_to_assignment):
@@ -371,13 +377,15 @@ class OrchestratorAgent:
                 except Exception as e:
                     agent_id = assignment.get("agent_id", "unknown")
                     logger.error("Parallel agent %s failed: %s", agent_id, e)
-                    results.append({
-                        "agent_id": agent_id,
-                        "agent_name": "Unknown",
-                        "task_description": assignment.get("task", ""),
-                        "result": f"Error during parallel execution: {type(e).__name__}: {e}",
-                        "status": "error",
-                    })
+                    results.append(
+                        {
+                            "agent_id": agent_id,
+                            "agent_name": "Unknown",
+                            "task_description": assignment.get("task", ""),
+                            "result": f"Error during parallel execution: {type(e).__name__}: {e}",
+                            "status": "error",
+                        }
+                    )
 
         return results
 
@@ -476,10 +484,7 @@ class OrchestratorAgent:
         if comm_log:
             parts.append("\n**🔗 Inter-Agent Communication:**\n")
             for msg in comm_log:
-                parts.append(
-                    f"  {msg['from']} → {msg['to']} [{msg['type']}]: "
-                    f"{msg['content_preview'][:100]}\n"
-                )
+                parts.append(f"  {msg['from']} → {msg['to']} [{msg['type']}]: {msg['content_preview'][:100]}\n")
 
         for result in results:
             status_icon = "✅" if result["status"] == "success" else "❌"
@@ -531,10 +536,12 @@ class OrchestratorAgent:
         registry_summary = self.registry.get_registry_summary()
         system_prompt = ORCHESTRATOR_SYSTEM_PROMPT.format(agent_registry=registry_summary)
 
-        response = self._llm.invoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_request),
-        ])
+        response = self._llm.invoke(
+            [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_request),
+            ]
+        )
 
         routing = self._extract_json(response.content)
         if routing and "assignments" in routing:

@@ -1,24 +1,27 @@
 """Tests for specialist agents and base agent."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 class TestBaseAgentInterface:
     """Verify that all agents implement the required interface."""
 
-    @pytest.fixture(params=[
-        "agents.code_reviewer.CodeReviewerAgent",
-        "agents.bug_analyzer.BugAnalyzerAgent",
-        "agents.architecture.ArchitectureAgent",
-        "agents.testing.TestingAgent",
-        "agents.security.SecurityAgent",
-        "agents.documentation.DocumentationAgent",
-        "agents.refactoring.RefactoringAgent",
-        "agents.devops.DevOpsAgent",
-        "agents.performance.PerformanceAgent",
-        "agents.exploit_analyzer.ExploitAnalyzerAgent",
-    ])
+    @pytest.fixture(
+        params=[
+            "agents.code_reviewer.CodeReviewerAgent",
+            "agents.bug_analyzer.BugAnalyzerAgent",
+            "agents.architecture.ArchitectureAgent",
+            "agents.testing.TestingAgent",
+            "agents.security.SecurityAgent",
+            "agents.documentation.DocumentationAgent",
+            "agents.refactoring.RefactoringAgent",
+            "agents.devops.DevOpsAgent",
+            "agents.performance.PerformanceAgent",
+            "agents.exploit_analyzer.ExploitAnalyzerAgent",
+        ]
+    )
     def agent_class_path(self, request):
         return request.param
 
@@ -26,6 +29,7 @@ class TestBaseAgentInterface:
         """Dynamically import an agent class from its dotted path."""
         module_path, class_name = path.rsplit(".", 1)
         import importlib
+
         module = importlib.import_module(module_path)
         return getattr(module, class_name)
 
@@ -78,22 +82,26 @@ class TestBaseAgentInterface:
 class TestAgentPrompts:
     """Verify that all prompt modules are properly defined."""
 
-    @pytest.mark.parametrize("prompt_module,prompt_var", [
-        ("prompts.orchestrator_prompt", "ORCHESTRATOR_SYSTEM_PROMPT"),
-        ("prompts.code_reviewer_prompt", "CODE_REVIEWER_SYSTEM_PROMPT"),
-        ("prompts.bug_analyzer_prompt", "BUG_ANALYZER_SYSTEM_PROMPT"),
-        ("prompts.architecture_prompt", "ARCHITECTURE_SYSTEM_PROMPT"),
-        ("prompts.testing_prompt", "TESTING_SYSTEM_PROMPT"),
-        ("prompts.security_prompt", "SECURITY_SYSTEM_PROMPT"),
-        ("prompts.documentation_prompt", "DOCUMENTATION_SYSTEM_PROMPT"),
-        ("prompts.refactoring_prompt", "REFACTORING_SYSTEM_PROMPT"),
-        ("prompts.devops_prompt", "DEVOPS_SYSTEM_PROMPT"),
-        ("prompts.performance_prompt", "PERFORMANCE_SYSTEM_PROMPT"),
-        ("prompts.exploit_analyzer_prompt", "EXPLOIT_ANALYZER_SYSTEM_PROMPT"),
-    ])
+    @pytest.mark.parametrize(
+        "prompt_module,prompt_var",
+        [
+            ("prompts.orchestrator_prompt", "ORCHESTRATOR_SYSTEM_PROMPT"),
+            ("prompts.code_reviewer_prompt", "CODE_REVIEWER_SYSTEM_PROMPT"),
+            ("prompts.bug_analyzer_prompt", "BUG_ANALYZER_SYSTEM_PROMPT"),
+            ("prompts.architecture_prompt", "ARCHITECTURE_SYSTEM_PROMPT"),
+            ("prompts.testing_prompt", "TESTING_SYSTEM_PROMPT"),
+            ("prompts.security_prompt", "SECURITY_SYSTEM_PROMPT"),
+            ("prompts.documentation_prompt", "DOCUMENTATION_SYSTEM_PROMPT"),
+            ("prompts.refactoring_prompt", "REFACTORING_SYSTEM_PROMPT"),
+            ("prompts.devops_prompt", "DEVOPS_SYSTEM_PROMPT"),
+            ("prompts.performance_prompt", "PERFORMANCE_SYSTEM_PROMPT"),
+            ("prompts.exploit_analyzer_prompt", "EXPLOIT_ANALYZER_SYSTEM_PROMPT"),
+        ],
+    )
     def test_prompt_exists_and_is_substantial(self, prompt_module, prompt_var):
         """Each prompt module should export a substantial system prompt."""
         import importlib
+
         module = importlib.import_module(prompt_module)
         prompt = getattr(module, prompt_var)
         assert isinstance(prompt, str)

@@ -1,8 +1,8 @@
 """Security-focused analysis tools for exploit detection and vulnerability scanning."""
 
-import ast
 import os
 import re
+
 from langchain_core.tools import tool
 
 # ---------------------------------------------------------------------------
@@ -34,7 +34,11 @@ _INJECTION_PATTERNS: list[tuple[str, str, str]] = [
     (r"""\.format\s*\(.*?\).*?(?:execute|query)""", "SQL Injection (.format)", "CWE-89"),
     (r"""(?i)text\s*\(\s*f['"].*?(?:SELECT|INSERT|UPDATE|DELETE|DROP)""", "SQL Injection (SQLAlchemy text)", "CWE-89"),
     # Command injection sinks
-    (r"""subprocess\.(?:call|run|Popen|check_output)\s*\(.*?(?:shell\s*=\s*True)""", "Command Injection (shell=True)", "CWE-78"),
+    (
+        r"""subprocess\.(?:call|run|Popen|check_output)\s*\(.*?(?:shell\s*=\s*True)""",
+        "Command Injection (shell=True)",
+        "CWE-78",
+    ),
     (r"""os\.(?:system|popen)\s*\(""", "OS Command Injection", "CWE-78"),
     (r"""os\.(?:system|popen)\s*\(.*?f['"]""", "OS Command Injection (f-string)", "CWE-78"),
     # XSS sinks
@@ -88,7 +92,11 @@ _PATH_TRAVERSAL_PATTERNS: list[tuple[str, str, str]] = [
     (r"""send_file\s*\(.*?(?:request\.|user_|input|param|arg|query)""", "User-controlled send_file", "CWE-22"),
     (r"""send_from_directory\s*\(""", "send_from_directory (verify safe usage)", "CWE-22"),
     (r"""os\.path\.join\s*\((?!.*os\.path\.abspath|.*secure_filename)""", "Path join without sanitization", "CWE-22"),
-    (r"""shutil\.(?:copy|move|rmtree)\s*\(.*?(?:request\.|user_|input|param)""", "User-controlled file operation", "CWE-22"),
+    (
+        r"""shutil\.(?:copy|move|rmtree)\s*\(.*?(?:request\.|user_|input|param)""",
+        "User-controlled file operation",
+        "CWE-22",
+    ),
     (r"""(?:\.\./)""", "Relative path traversal pattern", "CWE-22"),
     (r"""redirect\s*\(.*?(?:request\.|user_|input|param|url|next)""", "Open redirect", "CWE-601"),
 ]
@@ -102,13 +110,45 @@ def _scan_files(
 ) -> list[dict[str, str]]:
     """Internal scanner that applies regex patterns across a directory."""
     if extensions is None:
-        extensions = {".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".go", ".rs",
-                      ".rb", ".php", ".cs", ".yml", ".yaml", ".json", ".toml",
-                      ".cfg", ".ini", ".env", ".sh", ".bash", ".ps1", ".tf"}
+        extensions = {
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".java",
+            ".go",
+            ".rs",
+            ".rb",
+            ".php",
+            ".cs",
+            ".yml",
+            ".yaml",
+            ".json",
+            ".toml",
+            ".cfg",
+            ".ini",
+            ".env",
+            ".sh",
+            ".bash",
+            ".ps1",
+            ".tf",
+        }
 
     findings: list[dict[str, str]] = []
-    skip_dirs = {"node_modules", "__pycache__", "venv", ".venv", ".git", ".tox",
-                 "dist", "build", ".mypy_cache", ".pytest_cache", ".eggs"}
+    skip_dirs = {
+        "node_modules",
+        "__pycache__",
+        "venv",
+        ".venv",
+        ".git",
+        ".tox",
+        "dist",
+        "build",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".eggs",
+    }
 
     for root, dirs, files in os.walk(directory):
         dirs[:] = [d for d in dirs if not d.startswith(".") and d not in skip_dirs]
@@ -117,7 +157,7 @@ def _scan_files(
                 continue
             fpath = os.path.join(root, fname)
             try:
-                with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                with open(fpath, encoding="utf-8", errors="replace") as f:
                     for line_num, line in enumerate(f, 1):
                         for pattern_tuple in patterns:
                             regex_str = pattern_tuple[0]
@@ -125,13 +165,15 @@ def _scan_files(
                             cwe = pattern_tuple[2] if len(pattern_tuple) > 2 else ""
                             if re.search(regex_str, line):
                                 rel_path = os.path.relpath(fpath, directory)
-                                findings.append({
-                                    "file": rel_path,
-                                    "line": str(line_num),
-                                    "code": line.strip()[:120],
-                                    "finding": label,
-                                    "cwe": cwe,
-                                })
+                                findings.append(
+                                    {
+                                        "file": rel_path,
+                                        "line": str(line_num),
+                                        "code": line.strip()[:120],
+                                        "finding": label,
+                                        "cwe": cwe,
+                                    }
+                                )
                                 if len(findings) >= max_matches:
                                     return findings
             except (PermissionError, OSError):
@@ -159,6 +201,7 @@ def _format_findings(findings: list[dict[str, str]], title: str, directory: str)
 # ===================================================================
 # Public tools
 # ===================================================================
+
 
 @tool
 def scan_for_secrets(directory: str) -> str:
@@ -251,8 +294,8 @@ def analyze_attack_surface(directory: str) -> str:
         lines.append("")
 
     lines.append("### Attack Surface Summary")
-    lines.append(f"| Category | Count |")
-    lines.append(f"|----------|-------|")
+    lines.append("| Category | Count |")
+    lines.append("|----------|-------|")
     for category, items in sorted(categories.items(), key=lambda x: -len(x[1])):
         lines.append(f"| {category} | {len(items)} |")
 

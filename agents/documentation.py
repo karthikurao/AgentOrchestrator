@@ -4,11 +4,14 @@ from typing import Any
 
 from agents.base_agent import BaseAgent
 from prompts.documentation_prompt import DOCUMENTATION_SYSTEM_PROMPT
-from tools.file_tools import read_file, list_directory, read_multiple_files, search_in_files
-from tools.git_tools import git_log, git_status
 from tools.code_analysis_tools import (
-    find_imports, count_lines, find_function_definitions, analyze_type_hints,
+    analyze_type_hints,
+    count_lines,
+    find_function_definitions,
+    find_imports,
 )
+from tools.file_tools import list_directory, read_file, read_multiple_files, search_in_files
+from tools.git_tools import git_log, git_status
 
 
 class DocumentationAgent(BaseAgent):
@@ -30,9 +33,16 @@ class DocumentationAgent(BaseAgent):
             agent_id="documentation",
             name="Documentation",
             tools=[
-                read_file, list_directory, read_multiple_files, search_in_files,
-                git_log, git_status,
-                find_imports, count_lines, find_function_definitions, analyze_type_hints,
+                read_file,
+                list_directory,
+                read_multiple_files,
+                search_in_files,
+                git_log,
+                git_status,
+                find_imports,
+                count_lines,
+                find_function_definitions,
+                analyze_type_hints,
             ],
         )
 

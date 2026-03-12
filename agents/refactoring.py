@@ -4,12 +4,16 @@ from typing import Any
 
 from agents.base_agent import BaseAgent
 from prompts.refactoring_prompt import REFACTORING_SYSTEM_PROMPT
-from tools.file_tools import read_file, list_directory, read_multiple_files, search_in_files
-from tools.git_tools import git_diff, git_log, git_blame
 from tools.code_analysis_tools import (
-    analyze_complexity, find_imports, count_lines, find_function_definitions,
-    detect_code_smells, analyze_type_hints,
+    analyze_complexity,
+    analyze_type_hints,
+    count_lines,
+    detect_code_smells,
+    find_function_definitions,
+    find_imports,
 )
+from tools.file_tools import list_directory, read_file, read_multiple_files, search_in_files
+from tools.git_tools import git_blame, git_diff, git_log
 
 
 class RefactoringAgent(BaseAgent):
@@ -33,10 +37,19 @@ class RefactoringAgent(BaseAgent):
             agent_id="refactoring",
             name="Refactoring",
             tools=[
-                read_file, list_directory, read_multiple_files, search_in_files,
-                git_diff, git_log, git_blame,
-                analyze_complexity, find_imports, count_lines,
-                find_function_definitions, detect_code_smells, analyze_type_hints,
+                read_file,
+                list_directory,
+                read_multiple_files,
+                search_in_files,
+                git_diff,
+                git_log,
+                git_blame,
+                analyze_complexity,
+                find_imports,
+                count_lines,
+                find_function_definitions,
+                detect_code_smells,
+                analyze_type_hints,
             ],
         )
 

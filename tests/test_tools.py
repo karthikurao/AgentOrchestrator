@@ -1,14 +1,14 @@
 """Tests for shared tools (file, git, code analysis, security)."""
 
-import os
-import tempfile
-import pytest
-
-from tools.file_tools import read_file, list_directory, read_multiple_files
-from tools.code_analysis_tools import find_imports, count_lines
+from tools.code_analysis_tools import count_lines, find_imports
+from tools.file_tools import list_directory, read_file, read_multiple_files
 from tools.security_tools import (
-    scan_for_secrets, detect_injection_sinks, analyze_attack_surface,
-    detect_unsafe_deserialization, check_crypto_weaknesses, detect_path_traversal,
+    analyze_attack_surface,
+    check_crypto_weaknesses,
+    detect_injection_sinks,
+    detect_path_traversal,
+    detect_unsafe_deserialization,
+    scan_for_secrets,
 )
 
 
@@ -106,7 +106,7 @@ class TestSecurityTools:
 
     def test_detect_injection_sinks_eval(self, tmp_path):
         vuln_file = tmp_path / "danger.py"
-        vuln_file.write_text('result = eval(user_expression)\n')
+        vuln_file.write_text("result = eval(user_expression)\n")
         result = detect_injection_sinks.invoke({"directory": str(tmp_path)})
         assert "Code Injection" in result
 
@@ -136,13 +136,13 @@ class TestSecurityTools:
 
     def test_check_crypto_weaknesses_md5(self, tmp_path):
         vuln_file = tmp_path / "hash.py"
-        vuln_file.write_text('import hashlib\nh = hashlib.md5(password.encode())\n')
+        vuln_file.write_text("import hashlib\nh = hashlib.md5(password.encode())\n")
         result = check_crypto_weaknesses.invoke({"directory": str(tmp_path)})
         assert "MD5" in result
 
     def test_check_crypto_weaknesses_ssl_disabled(self, tmp_path):
         vuln_file = tmp_path / "api.py"
-        vuln_file.write_text('requests.get(url, verify=False)\n')
+        vuln_file.write_text("requests.get(url, verify=False)\n")
         result = check_crypto_weaknesses.invoke({"directory": str(tmp_path)})
         assert "SSL verification disabled" in result
 

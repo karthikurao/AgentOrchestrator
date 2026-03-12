@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentMessage:
     """A single message exchanged between agents."""
+
     from_agent: str
     to_agent: str
     message_type: str  # "delegation", "response", "broadcast"
@@ -90,7 +91,9 @@ class AgentCommunicationBus:
             self._message_log.append(msg)
         logger.info(
             "AgentBus [%s] %s → %s: %s",
-            msg.message_type, msg.from_agent, msg.to_agent,
+            msg.message_type,
+            msg.from_agent,
+            msg.to_agent,
             msg.content[:100],
         )
 
@@ -152,29 +155,31 @@ class AgentCommunicationBus:
                 f"Cannot delegate from '{from_agent_id}' to '{to_agent_id}'. "
                 "This prevents infinite agent-to-agent recursion."
             )
-            self._log_message(AgentMessage(
-                from_agent=from_agent_id,
-                to_agent=to_agent_id,
-                message_type="delegation_blocked",
-                content=error_msg,
-            ))
+            self._log_message(
+                AgentMessage(
+                    from_agent=from_agent_id,
+                    to_agent=to_agent_id,
+                    message_type="delegation_blocked",
+                    content=error_msg,
+                )
+            )
             raise DelegationDepthExceeded(error_msg)
 
         target_agent = self._agents.get(to_agent_id)
         if not target_agent:
             available = ", ".join(self._agents.keys())
-            raise ValueError(
-                f"Agent '{to_agent_id}' not found. Available agents: {available}"
-            )
+            raise ValueError(f"Agent '{to_agent_id}' not found. Available agents: {available}")
 
         # Log the delegation request
-        self._log_message(AgentMessage(
-            from_agent=from_agent_id,
-            to_agent=to_agent_id,
-            message_type="delegation",
-            content=task,
-            metadata={"depth": current_depth + 1},
-        ))
+        self._log_message(
+            AgentMessage(
+                from_agent=from_agent_id,
+                to_agent=to_agent_id,
+                message_type="delegation",
+                content=task,
+                metadata={"depth": current_depth + 1},
+            )
+        )
 
         # Increase depth for the target agent's execution
         self._set_depth(current_depth + 1)
@@ -188,13 +193,15 @@ class AgentCommunicationBus:
             self._set_depth(current_depth)
 
         # Log the response
-        self._log_message(AgentMessage(
-            from_agent=to_agent_id,
-            to_agent=from_agent_id,
-            message_type="response",
-            content=result_text[:500],
-            metadata={"depth": current_depth + 1},
-        ))
+        self._log_message(
+            AgentMessage(
+                from_agent=to_agent_id,
+                to_agent=from_agent_id,
+                message_type="response",
+                content=result_text[:500],
+                metadata={"depth": current_depth + 1},
+            )
+        )
 
         return result_text
 
@@ -218,24 +225,28 @@ class AgentCommunicationBus:
                 f"Delegation depth limit reached ({self.max_delegation_depth}). "
                 f"Cannot route from '{from_agent_id}' through orchestrator."
             )
-            self._log_message(AgentMessage(
-                from_agent=from_agent_id,
-                to_agent="orchestrator",
-                message_type="route_blocked",
-                content=error_msg,
-            ))
+            self._log_message(
+                AgentMessage(
+                    from_agent=from_agent_id,
+                    to_agent="orchestrator",
+                    message_type="route_blocked",
+                    content=error_msg,
+                )
+            )
             raise DelegationDepthExceeded(error_msg)
 
         if not self._orchestrator_route_fn:
             return "Error: Orchestrator routing function not configured on the communication bus."
 
-        self._log_message(AgentMessage(
-            from_agent=from_agent_id,
-            to_agent="orchestrator",
-            message_type="route_request",
-            content=task,
-            metadata={"depth": current_depth + 1},
-        ))
+        self._log_message(
+            AgentMessage(
+                from_agent=from_agent_id,
+                to_agent="orchestrator",
+                message_type="route_request",
+                content=task,
+                metadata={"depth": current_depth + 1},
+            )
+        )
 
         self._set_depth(current_depth + 1)
         try:
@@ -247,21 +258,25 @@ class AgentCommunicationBus:
         finally:
             self._set_depth(current_depth)
 
-        self._log_message(AgentMessage(
-            from_agent="orchestrator",
-            to_agent=from_agent_id,
-            message_type="route_response",
-            content=result_text[:500],
-            metadata={"depth": current_depth + 1},
-        ))
+        self._log_message(
+            AgentMessage(
+                from_agent="orchestrator",
+                to_agent=from_agent_id,
+                message_type="route_response",
+                content=result_text[:500],
+                metadata={"depth": current_depth + 1},
+            )
+        )
 
         return result_text
 
     def broadcast(self, from_agent_id: str, message: str) -> None:
         """Broadcast a message from one agent to all others (logged, non-blocking)."""
-        self._log_message(AgentMessage(
-            from_agent=from_agent_id,
-            to_agent="*",
-            message_type="broadcast",
-            content=message,
-        ))
+        self._log_message(
+            AgentMessage(
+                from_agent=from_agent_id,
+                to_agent="*",
+                message_type="broadcast",
+                content=message,
+            )
+        )

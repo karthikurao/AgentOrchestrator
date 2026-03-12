@@ -4,14 +4,21 @@ from typing import Any
 
 from agents.base_agent import BaseAgent
 from prompts.security_prompt import SECURITY_SYSTEM_PROMPT
-from tools.file_tools import read_file, list_directory, read_multiple_files, search_in_files
-from tools.git_tools import git_status, git_diff, git_log
 from tools.code_analysis_tools import (
-    find_imports, find_function_definitions, detect_code_smells, analyze_dependency_security,
+    analyze_dependency_security,
+    detect_code_smells,
+    find_function_definitions,
+    find_imports,
 )
+from tools.file_tools import list_directory, read_file, read_multiple_files, search_in_files
+from tools.git_tools import git_diff, git_log, git_status
 from tools.security_tools import (
-    scan_for_secrets, detect_injection_sinks, analyze_attack_surface,
-    detect_unsafe_deserialization, check_crypto_weaknesses, detect_path_traversal,
+    analyze_attack_surface,
+    check_crypto_weaknesses,
+    detect_injection_sinks,
+    detect_path_traversal,
+    detect_unsafe_deserialization,
+    scan_for_secrets,
 )
 
 
@@ -39,13 +46,24 @@ class SecurityAgent(BaseAgent):
             agent_id="security",
             name="Security",
             tools=[
-                read_file, list_directory, read_multiple_files, search_in_files,
-                git_status, git_diff, git_log,
-                find_imports, find_function_definitions, detect_code_smells,
+                read_file,
+                list_directory,
+                read_multiple_files,
+                search_in_files,
+                git_status,
+                git_diff,
+                git_log,
+                find_imports,
+                find_function_definitions,
+                detect_code_smells,
                 analyze_dependency_security,
                 # Exploit-oriented security tools
-                scan_for_secrets, detect_injection_sinks, analyze_attack_surface,
-                detect_unsafe_deserialization, check_crypto_weaknesses, detect_path_traversal,
+                scan_for_secrets,
+                detect_injection_sinks,
+                analyze_attack_surface,
+                detect_unsafe_deserialization,
+                check_crypto_weaknesses,
+                detect_path_traversal,
             ],
         )
 

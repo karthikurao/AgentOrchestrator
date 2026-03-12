@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,20 +19,12 @@ class Settings:
     )
     max_tokens: int = field(default_factory=lambda: int(os.getenv("MAX_TOKENS", "4096")))
     temperature: float = field(default_factory=lambda: float(os.getenv("TEMPERATURE", "0.3")))
-    verbose: bool = field(
-        default_factory=lambda: os.getenv("VERBOSE", "false").lower() == "true"
-    )
+    verbose: bool = field(default_factory=lambda: os.getenv("VERBOSE", "false").lower() == "true")
 
     # Parallel execution settings
-    parallel_execution: bool = field(
-        default_factory=lambda: os.getenv("PARALLEL_EXECUTION", "true").lower() == "true"
-    )
-    max_parallel_agents: int = field(
-        default_factory=lambda: int(os.getenv("MAX_PARALLEL_AGENTS", "4"))
-    )
-    max_delegation_depth: int = field(
-        default_factory=lambda: int(os.getenv("MAX_DELEGATION_DEPTH", "3"))
-    )
+    parallel_execution: bool = field(default_factory=lambda: os.getenv("PARALLEL_EXECUTION", "true").lower() == "true")
+    max_parallel_agents: int = field(default_factory=lambda: int(os.getenv("MAX_PARALLEL_AGENTS", "4")))
+    max_delegation_depth: int = field(default_factory=lambda: int(os.getenv("MAX_DELEGATION_DEPTH", "3")))
 
     def validate(self) -> None:
         """Validate that required settings are configured."""

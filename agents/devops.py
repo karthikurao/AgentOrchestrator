@@ -4,9 +4,9 @@ from typing import Any
 
 from agents.base_agent import BaseAgent
 from prompts.devops_prompt import DEVOPS_SYSTEM_PROMPT
-from tools.file_tools import read_file, list_directory, read_multiple_files, search_in_files
-from tools.git_tools import git_status, git_log, git_diff
-from tools.code_analysis_tools import find_imports, analyze_dependency_security
+from tools.code_analysis_tools import analyze_dependency_security, find_imports
+from tools.file_tools import list_directory, read_file, read_multiple_files, search_in_files
+from tools.git_tools import git_diff, git_log, git_status
 
 
 class DevOpsAgent(BaseAgent):
@@ -30,9 +30,15 @@ class DevOpsAgent(BaseAgent):
             agent_id="devops",
             name="DevOps/CI-CD",
             tools=[
-                read_file, list_directory, read_multiple_files, search_in_files,
-                git_status, git_log, git_diff,
-                find_imports, analyze_dependency_security,
+                read_file,
+                list_directory,
+                read_multiple_files,
+                search_in_files,
+                git_status,
+                git_log,
+                git_diff,
+                find_imports,
+                analyze_dependency_security,
             ],
         )
 

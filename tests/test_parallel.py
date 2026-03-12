@@ -1,13 +1,12 @@
 """Tests for parallel execution, communication bus, and inter-agent tools."""
 
-import time
 import threading
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, PropertyMock
 
-from agents.communication import AgentCommunicationBus, AgentMessage, DelegationDepthExceeded
+from agents.communication import AgentCommunicationBus, DelegationDepthExceeded
 from tools.agent_tools import create_agent_tools, create_delegate_tool, create_orchestrator_route_tool
-
 
 # ==============================================================================
 # Communication Bus Tests
@@ -160,10 +159,7 @@ class TestAgentCommunicationBus:
             for i in range(messages_per_thread):
                 bus.broadcast(agent_id, f"msg-{i}")
 
-        threads = [
-            threading.Thread(target=broadcast_many, args=(f"agent_{i}",))
-            for i in range(num_threads)
-        ]
+        threads = [threading.Thread(target=broadcast_many, args=(f"agent_{i}",)) for i in range(num_threads)]
         for t in threads:
             t.start()
         for t in threads:
@@ -264,6 +260,7 @@ class TestParallelExecution:
         ]
 
         from collections import defaultdict
+
         groups = defaultdict(list)
         for a in assignments:
             groups[a.get("priority", 1)].append(a)
@@ -281,6 +278,7 @@ class TestBaseAgentCommunication:
     def test_set_communication_bus_adds_tools(self, mock_llm):
         """Setting a bus should add delegation tools to the agent."""
         from agents.code_reviewer import CodeReviewerAgent
+
         agent = CodeReviewerAgent()
         initial_tool_count = len(agent.tools)
 
@@ -297,6 +295,7 @@ class TestBaseAgentCommunication:
     def test_set_communication_bus_idempotent(self, mock_llm):
         """Setting the bus multiple times should not duplicate tools."""
         from agents.code_reviewer import CodeReviewerAgent
+
         agent = CodeReviewerAgent()
 
         bus = AgentCommunicationBus()
@@ -312,6 +311,7 @@ class TestSettingsParallel:
 
     def test_default_settings(self):
         from config.settings import Settings
+
         s = Settings()
         assert s.parallel_execution is True
         assert s.max_parallel_agents == 4
@@ -320,6 +320,7 @@ class TestSettingsParallel:
     @patch.dict("os.environ", {"PARALLEL_EXECUTION": "false", "MAX_PARALLEL_AGENTS": "8", "MAX_DELEGATION_DEPTH": "5"})
     def test_settings_from_env(self):
         from config.settings import Settings
+
         s = Settings()
         assert s.parallel_execution is False
         assert s.max_parallel_agents == 8
@@ -331,6 +332,7 @@ class TestOrchestratorState:
 
     def test_orchestrator_state_has_parallel_metadata(self):
         from agents.orchestrator import OrchestratorState
+
         state: OrchestratorState = {
             "user_request": "test",
             "routing_decision": {},

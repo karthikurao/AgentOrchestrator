@@ -4,11 +4,14 @@ from typing import Any
 
 from agents.base_agent import BaseAgent
 from prompts.testing_prompt import TESTING_SYSTEM_PROMPT
-from tools.file_tools import read_file, list_directory, read_multiple_files, search_in_files
 from tools.code_analysis_tools import (
-    analyze_complexity, count_lines, find_imports, find_function_definitions,
+    analyze_complexity,
+    count_lines,
     detect_code_smells,
+    find_function_definitions,
+    find_imports,
 )
+from tools.file_tools import list_directory, read_file, read_multiple_files, search_in_files
 
 
 class TestingAgent(BaseAgent):
@@ -32,9 +35,15 @@ class TestingAgent(BaseAgent):
             agent_id="testing",
             name="Testing",
             tools=[
-                read_file, list_directory, read_multiple_files, search_in_files,
-                analyze_complexity, count_lines, find_imports,
-                find_function_definitions, detect_code_smells,
+                read_file,
+                list_directory,
+                read_multiple_files,
+                search_in_files,
+                analyze_complexity,
+                count_lines,
+                find_imports,
+                find_function_definitions,
+                detect_code_smells,
             ],
         )
 

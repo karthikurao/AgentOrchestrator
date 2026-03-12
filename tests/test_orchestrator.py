@@ -1,10 +1,10 @@
 """Tests for the Orchestrator agent routing logic."""
 
 import json
-import pytest
-from unittest.mock import patch, MagicMock
 
-from config.agent_registry import AgentRegistry, AgentInfo
+import pytest
+
+from config.agent_registry import AgentRegistry
 
 
 class TestAgentRegistry:
@@ -46,11 +46,21 @@ class TestAgentRegistry:
             assert agent.name in summary
             assert agent.agent_id in summary
 
-    @pytest.mark.parametrize("agent_id", [
-        "code_reviewer", "bug_analyzer", "architecture", "testing",
-        "security", "documentation", "refactoring", "devops", "performance",
-        "exploit_analyzer",
-    ])
+    @pytest.mark.parametrize(
+        "agent_id",
+        [
+            "code_reviewer",
+            "bug_analyzer",
+            "architecture",
+            "testing",
+            "security",
+            "documentation",
+            "refactoring",
+            "devops",
+            "performance",
+            "exploit_analyzer",
+        ],
+    )
     def test_each_agent_is_registered(self, agent_id):
         registry = AgentRegistry()
         assert registry.get(agent_id) is not None
@@ -61,12 +71,12 @@ class TestOrchestratorRouting:
 
     def test_valid_routing_json_parsing(self):
         """Verify that valid JSON routing decisions are parsed correctly."""
-        routing_json = json.dumps({
-            "analysis": "User wants a code review",
-            "assignments": [
-                {"agent_id": "code_reviewer", "task": "Review the code", "priority": 1}
-            ],
-        })
+        routing_json = json.dumps(
+            {
+                "analysis": "User wants a code review",
+                "assignments": [{"agent_id": "code_reviewer", "task": "Review the code", "priority": 1}],
+            }
+        )
         parsed = json.loads(routing_json)
         assert parsed["assignments"][0]["agent_id"] == "code_reviewer"
         assert parsed["assignments"][0]["priority"] == 1
@@ -99,16 +109,16 @@ class TestOrchestratorAgentLookup:
 
     def test_all_registered_agents_can_be_instantiated(self):
         """Verify that all agents in the registry have corresponding classes."""
-        from agents.code_reviewer import CodeReviewerAgent
-        from agents.bug_analyzer import BugAnalyzerAgent
         from agents.architecture import ArchitectureAgent
-        from agents.testing import TestingAgent
-        from agents.security import SecurityAgent
-        from agents.documentation import DocumentationAgent
-        from agents.refactoring import RefactoringAgent
+        from agents.bug_analyzer import BugAnalyzerAgent
+        from agents.code_reviewer import CodeReviewerAgent
         from agents.devops import DevOpsAgent
-        from agents.performance import PerformanceAgent
+        from agents.documentation import DocumentationAgent
         from agents.exploit_analyzer import ExploitAnalyzerAgent
+        from agents.performance import PerformanceAgent
+        from agents.refactoring import RefactoringAgent
+        from agents.security import SecurityAgent
+        from agents.testing import TestingAgent
 
         agent_classes = {
             "code_reviewer": CodeReviewerAgent,

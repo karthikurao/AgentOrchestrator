@@ -1,24 +1,21 @@
 """CLI interface for the Agent Orchestrator — Rich-based interactive terminal."""
 
-import sys
 import os
+import sys
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rich.console import Console
-from rich.panel import Panel
-from rich.markdown import Markdown
-from rich.table import Table
-from rich.prompt import Prompt
-from rich.live import Live
-from rich.spinner import Spinner
-from rich.text import Text
 from rich import box
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.prompt import Prompt
+from rich.table import Table
+from rich.text import Text
 
-from config.settings import settings
 from agents.orchestrator import OrchestratorAgent
-
+from config.settings import settings
 
 console = Console()
 
@@ -75,11 +72,13 @@ def display_agents(orchestrator: OrchestratorAgent) -> None:
 
 def display_routing_preview(routing: dict) -> None:
     """Show which agents the orchestrator would select."""
-    console.print(Panel(
-        routing.get("analysis", "N/A"),
-        title="🧭 Routing Analysis",
-        border_style="yellow",
-    ))
+    console.print(
+        Panel(
+            routing.get("analysis", "N/A"),
+            title="🧭 Routing Analysis",
+            border_style="yellow",
+        )
+    )
     assignments = routing.get("assignments", [])
     if assignments:
         table = Table(box=box.SIMPLE, border_style="yellow")
@@ -99,11 +98,13 @@ def display_results(state: dict) -> None:
     parallel_meta = state.get("parallel_metadata", {})
 
     # Show orchestrator analysis
-    console.print(Panel(
-        routing.get("analysis", "N/A"),
-        title="🧭 Orchestrator Analysis",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel(
+            routing.get("analysis", "N/A"),
+            title="🧭 Orchestrator Analysis",
+            border_style="cyan",
+        )
+    )
 
     # Show summary stats
     success_count = sum(1 for r in results if r.get("status") == "success")
@@ -132,7 +133,8 @@ def display_results(state: dict) -> None:
     if groups:
         group_table = Table(
             title="⚡ Execution Groups",
-            box=box.SIMPLE, border_style="cyan",
+            box=box.SIMPLE,
+            border_style="cyan",
         )
         group_table.add_column("Priority", style="bold", width=8)
         group_table.add_column("Agents", style="green")
@@ -172,7 +174,9 @@ def display_results(state: dict) -> None:
         if severity and severity.get("total_findings", 0) > 0:
             sev = severity
             sev_level = sev.get("overall", "CLEAN")
-            sev_color = {"CRITICAL": "bold red", "HIGH": "red", "MEDIUM": "yellow", "LOW": "green"}.get(sev_level, "dim")
+            sev_color = {"CRITICAL": "bold red", "HIGH": "red", "MEDIUM": "yellow", "LOW": "green"}.get(
+                sev_level, "dim"
+            )
             sev_text = (
                 f"[{sev_color}]Risk: {sev_level}[/{sev_color}] — "
                 f"🔴 {sev.get('critical', 0)} Critical | 🟠 {sev.get('high', 0)} High | "
@@ -182,20 +186,24 @@ def display_results(state: dict) -> None:
             console.print(Panel(sev_text, title="🛡️ Severity Summary", border_style=sev_color, box=box.SIMPLE))
 
         # Task description panel
-        console.print(Panel(
-            Markdown(result["task_description"]),
-            title=f"📋 {result['agent_name']} — Task Description",
-            border_style="yellow",
-            box=box.ROUNDED,
-        ))
+        console.print(
+            Panel(
+                Markdown(result["task_description"]),
+                title=f"📋 {result['agent_name']} — Task Description",
+                border_style="yellow",
+                box=box.ROUNDED,
+            )
+        )
 
         # Result panel
-        console.print(Panel(
-            Markdown(result["result"]),
-            title=f"{status_icon} {result['agent_name']} Agent{meta_str}",
-            border_style=border,
-            box=box.DOUBLE,
-        ))
+        console.print(
+            Panel(
+                Markdown(result["result"]),
+                title=f"{status_icon} {result['agent_name']} Agent{meta_str}",
+                border_style=border,
+                box=box.DOUBLE,
+            )
+        )
         console.print()
 
 
@@ -207,14 +215,16 @@ def run_interactive() -> None:
     try:
         settings.validate()
     except ValueError as e:
-        console.print(Panel(
-            f"[bold red]Configuration Error[/bold red]\n\n{str(e)}\n\n"
-            "1. Copy `.env.example` to `.env`\n"
-            "2. Set your `GITHUB_TOKEN` in the `.env` file\n"
-            "3. Get a token at: https://github.com/settings/tokens",
-            title="⚠️  Setup Required",
-            border_style="red",
-        ))
+        console.print(
+            Panel(
+                f"[bold red]Configuration Error[/bold red]\n\n{e!s}\n\n"
+                "1. Copy `.env.example` to `.env`\n"
+                "2. Set your `GITHUB_TOKEN` in the `.env` file\n"
+                "3. Get a token at: https://github.com/settings/tokens",
+                title="⚠️  Setup Required",
+                border_style="red",
+            )
+        )
         sys.exit(1)
 
     # Initialize orchestrator
@@ -268,10 +278,12 @@ def run_interactive() -> None:
                     "calculate CVSS v3.1 scores, build a STRIDE threat model, and provide proof-of-concept "
                     "exploit scenarios with remediation for every finding."
                 )
-                console.print(Panel(
-                    f"🎯 Running exploit analysis on: [bold]{target_path}[/bold]",
-                    border_style="red",
-                ))
+                console.print(
+                    Panel(
+                        f"🎯 Running exploit analysis on: [bold]{target_path}[/bold]",
+                        border_style="red",
+                    )
+                )
                 with console.status(
                     "[bold red]🔍 Exploit Analyzer scanning for vulnerabilities...",
                     spinner="dots",
@@ -294,7 +306,7 @@ def run_interactive() -> None:
             console.print("\n[yellow]Use /quit to exit.[/yellow]")
             continue
         except Exception as e:
-            console.print(f"\n[bold red]Error:[/bold red] {str(e)}\n")
+            console.print(f"\n[bold red]Error:[/bold red] {e!s}\n")
             if settings.verbose:
                 console.print_exception()
 
