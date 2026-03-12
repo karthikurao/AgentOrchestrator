@@ -35,6 +35,8 @@ def list_directory(directory_path: str, max_depth: int = 3) -> str:
         max_depth: Maximum depth to recurse (default 3).
     """
     try:
+        if not os.path.isdir(directory_path):
+            return f"Error: Directory not found: {directory_path}"
         lines = []
         base_depth = directory_path.rstrip(os.sep).count(os.sep)
         for root, dirs, files in os.walk(directory_path):
