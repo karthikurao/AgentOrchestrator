@@ -22,6 +22,17 @@ class Settings:
         default_factory=lambda: os.getenv("VERBOSE", "false").lower() == "true"
     )
 
+    # Parallel execution settings
+    parallel_execution: bool = field(
+        default_factory=lambda: os.getenv("PARALLEL_EXECUTION", "true").lower() == "true"
+    )
+    max_parallel_agents: int = field(
+        default_factory=lambda: int(os.getenv("MAX_PARALLEL_AGENTS", "4"))
+    )
+    max_delegation_depth: int = field(
+        default_factory=lambda: int(os.getenv("MAX_DELEGATION_DEPTH", "3"))
+    )
+
     def validate(self) -> None:
         """Validate that required settings are configured."""
         if not self.github_token:

@@ -96,6 +96,7 @@ def display_results(state: dict) -> None:
     """Display the orchestrator's results with Rich formatting."""
     routing = state.get("routing_decision", {})
     results = state.get("agent_results", [])
+    parallel_meta = state.get("parallel_metadata", {})
 
     # Show orchestrator analysis
     console.print(Panel(
@@ -114,7 +115,43 @@ def display_results(state: dict) -> None:
     summary_table.add_row("Succeeded", f"[green]{success_count}[/green]")
     if error_count:
         summary_table.add_row("Failed", f"[red]{error_count}[/red]")
+
+    # Parallel execution info
+    exec_mode = parallel_meta.get("execution_mode", "sequential")
+    wall_time = parallel_meta.get("total_wall_time_seconds", 0)
+    cpu_time = parallel_meta.get("total_cpu_time_seconds", 0)
+    summary_table.add_row("Execution Mode", f"[bold cyan]{exec_mode}[/bold cyan]")
+    summary_table.add_row("Wall Time", f"{wall_time}s")
+    if cpu_time > wall_time > 0:
+        saved = round(cpu_time - wall_time, 2)
+        summary_table.add_row("Time Saved", f"[bold green]⚡ {saved}s[/bold green]")
     console.print(summary_table)
+
+    # Priority group breakdown
+    groups = parallel_meta.get("priority_groups", [])
+    if groups:
+        group_table = Table(
+            title="⚡ Execution Groups",
+            box=box.SIMPLE, border_style="cyan",
+        )
+        group_table.add_column("Priority", style="bold", width=8)
+        group_table.add_column("Agents", style="green")
+        group_table.add_column("Mode", width=12)
+        group_table.add_column("Time", width=8)
+        for g in groups:
+            mode = "[bold cyan]parallel[/bold cyan]" if g.get("parallel") else "sequential"
+            group_table.add_row(
+                str(g["priority"]),
+                ", ".join(g["agents"]),
+                mode,
+                f"{g['wall_time_seconds']}s",
+            )
+        console.print(group_table)
+
+    # Inter-agent communication log
+    comm_log = state.get("parallel_metadata", {}).get("_comm_log_rendered", False)
+    # We access the orchestrator's bus directly through results metadata if available
+    # The final_response already includes comm log text from aggregation
 
     # Show each agent's output
     for result in results:

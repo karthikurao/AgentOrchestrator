@@ -17,6 +17,7 @@ from tools.security_tools import (
     check_crypto_weaknesses,
     detect_path_traversal,
 )
+from tools.agent_tools import create_agent_tools, create_delegate_tool, create_orchestrator_route_tool
 
 __all__ = [
     "read_file", "list_directory", "read_multiple_files", "search_in_files",
@@ -26,4 +27,5 @@ __all__ = [
     "analyze_type_hints", "analyze_dependency_security",
     "scan_for_secrets", "detect_injection_sinks", "analyze_attack_surface",
     "detect_unsafe_deserialization", "check_crypto_weaknesses", "detect_path_traversal",
+    "create_agent_tools", "create_delegate_tool", "create_orchestrator_route_tool",
 ]

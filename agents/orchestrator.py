@@ -4,6 +4,8 @@ import json
 import logging
 import re
 import time
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, TypedDict
 
 from langchain_openai import ChatOpenAI
@@ -24,6 +26,7 @@ from agents.refactoring import RefactoringAgent
 from agents.devops import DevOpsAgent
 from agents.performance import PerformanceAgent
 from agents.exploit_analyzer import ExploitAnalyzerAgent
+from agents.communication import AgentCommunicationBus
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +40,7 @@ class OrchestratorState(TypedDict):
     agent_results: list[dict[str, Any]]
     final_response: str
     error: str | None
+    parallel_metadata: dict[str, Any]
 
 
 class OrchestratorAgent:
@@ -44,10 +48,13 @@ class OrchestratorAgent:
 
     Uses LangGraph to build a state machine:
     1. classify_intent → Analyzes user request, retries on parse failure, selects agent(s)
-    2. execute_agents → Runs assigned agents sequentially by priority, with error isolation
+    2. execute_agents → Runs assigned agents in parallel by priority group
     3. aggregate_results → Combines all agent outputs into a structured final response
 
     Features:
+    - **Parallel execution** — agents at the same priority level run concurrently
+    - **Inter-agent communication** — agents can delegate to each other via AgentCommunicationBus
+    - Two delegation modes: direct (agent-to-agent) and master-mediated (through orchestrator)
     - Robust JSON extraction from LLM responses (handles markdown fences, preamble text)
     - Retry on routing parse failure with a stricter follow-up prompt
     - Per-agent error isolation — one agent failure doesn't block others
@@ -65,6 +72,7 @@ class OrchestratorAgent:
         self.registry = AgentRegistry()
         self._llm = ChatOpenAI(**settings.get_llm_kwargs())
         self._agents = self._initialize_agents()
+        self._communication_bus = self._initialize_communication_bus()
         self._graph = self._build_graph()
 
     def _initialize_agents(self) -> dict[str, Any]:
@@ -81,6 +89,46 @@ class OrchestratorAgent:
             "performance": PerformanceAgent(),
             "exploit_analyzer": ExploitAnalyzerAgent(),
         }
+
+    def _initialize_communication_bus(self) -> AgentCommunicationBus:
+        """Set up the inter-agent communication bus and wire it to all agents."""
+        bus = AgentCommunicationBus(max_delegation_depth=settings.max_delegation_depth)
+        bus.register_all_agents(self._agents)
+        bus.set_orchestrator_route_fn(self._route_for_delegation)
+
+        for agent in self._agents.values():
+            agent.set_communication_bus(bus)
+
+        return bus
+
+    def _route_for_delegation(self, task: str) -> str:
+        """Internal routing function used for master-mediated inter-agent communication.
+
+        This is called by agents via request_via_orchestrator. It classifies the task
+        and executes the selected agent(s), returning the combined result text.
+        """
+        registry_summary = self.registry.get_registry_summary()
+        system_prompt = ORCHESTRATOR_SYSTEM_PROMPT.format(agent_registry=registry_summary)
+
+        try:
+            response = self._llm.invoke([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=task),
+            ])
+            routing = self._extract_json(response.content)
+            if routing and "assignments" in routing:
+                routing = self._validate_routing(routing)
+                assignments = routing["assignments"]
+                # Execute the first assigned agent (single delegation, not fan-out)
+                assignment = assignments[0]
+                agent = self._agents.get(assignment["agent_id"])
+                if agent:
+                    result = agent.invoke(assignment.get("task", task))
+                    return result.get("result", str(result)) if isinstance(result, dict) else str(result)
+        except Exception as e:
+            logger.error("Orchestrator-mediated routing failed: %s", e)
+
+        return f"Could not route delegated task: {task[:200]}"
 
     def _build_graph(self) -> Any:
         """Build the LangGraph state machine for orchestration."""
@@ -216,64 +264,222 @@ class OrchestratorAgent:
         }
 
     def _execute_agents(self, state: OrchestratorState) -> dict[str, Any]:
-        """Execute the assigned agents based on the routing decision.
+        """Execute the assigned agents, using parallel execution for same-priority groups.
 
-        Agents are executed sequentially sorted by priority. Each agent runs in
-        an isolated error boundary — a failure in one agent does not prevent
-        subsequent agents from running.
+        Agents are grouped by priority level. Within each priority group, agents
+        execute concurrently using ThreadPoolExecutor. Groups are processed in
+        priority order (lower number = higher priority), with a barrier between
+        groups so that earlier groups complete before later ones start.
+
+        Results from earlier priority groups are passed as context to later groups.
         """
+        # Clear any previous inter-agent messages
+        self._communication_bus.clear_log()
+
         routing = state["routing_decision"]
         assignments = routing.get("assignments", [])
 
-        # Sort by priority (lower = higher priority)
-        assignments.sort(key=lambda a: a.get("priority", 1))
+        # Group assignments by priority
+        priority_groups: dict[int, list[dict]] = defaultdict(list)
+        for assignment in assignments:
+            priority = assignment.get("priority", 1)
+            priority_groups[priority].append(assignment)
 
+        sorted_priorities = sorted(priority_groups.keys())
+
+        all_results = []
+        parallel_meta = {
+            "execution_mode": "parallel" if settings.parallel_execution else "sequential",
+            "priority_groups": [],
+            "total_wall_time_seconds": 0,
+            "total_cpu_time_seconds": 0,
+        }
+
+        overall_start = time.time()
+        prior_results_context = {}
+
+        for priority in sorted_priorities:
+            group = priority_groups[priority]
+            group_agent_ids = [a.get("agent_id", "?") for a in group]
+            group_start = time.time()
+
+            if settings.parallel_execution and len(group) > 1:
+                # --- Parallel execution for this priority group ---
+                group_results = self._execute_group_parallel(
+                    group, state["user_request"], prior_results_context
+                )
+            else:
+                # --- Sequential execution (single agent or parallel disabled) ---
+                group_results = self._execute_group_sequential(
+                    group, state["user_request"], prior_results_context
+                )
+
+            group_elapsed = round(time.time() - group_start, 2)
+            agent_times = [
+                r.get("metadata", {}).get("execution_time_seconds", 0)
+                for r in group_results
+            ]
+            sequential_time = sum(agent_times)
+
+            parallel_meta["priority_groups"].append({
+                "priority": priority,
+                "agents": group_agent_ids,
+                "wall_time_seconds": group_elapsed,
+                "sequential_time_seconds": round(sequential_time, 2),
+                "parallel": settings.parallel_execution and len(group) > 1,
+            })
+            parallel_meta["total_cpu_time_seconds"] += sequential_time
+
+            # Accumulate results and build context for next group
+            all_results.extend(group_results)
+            for r in group_results:
+                if r.get("status") == "success":
+                    prior_results_context[r.get("agent_id", "unknown")] = (
+                        r.get("result", "")[:2000]
+                    )
+
+        parallel_meta["total_wall_time_seconds"] = round(time.time() - overall_start, 2)
+
+        return {
+            "agent_results": all_results,
+            "parallel_metadata": parallel_meta,
+        }
+
+    def _execute_group_parallel(
+        self,
+        assignments: list[dict],
+        user_request: str,
+        prior_context: dict[str, str],
+    ) -> list[dict[str, Any]]:
+        """Execute a group of agent assignments concurrently using ThreadPoolExecutor."""
+        results = []
+        max_workers = min(len(assignments), settings.max_parallel_agents)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_assignment = {}
+            for assignment in assignments:
+                future = executor.submit(
+                    self._run_single_agent, assignment, user_request, prior_context
+                )
+                future_to_assignment[future] = assignment
+
+            for future in as_completed(future_to_assignment):
+                assignment = future_to_assignment[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    agent_id = assignment.get("agent_id", "unknown")
+                    logger.error("Parallel agent %s failed: %s", agent_id, e)
+                    results.append({
+                        "agent_id": agent_id,
+                        "agent_name": "Unknown",
+                        "task_description": assignment.get("task", ""),
+                        "result": f"Error during parallel execution: {type(e).__name__}: {e}",
+                        "status": "error",
+                    })
+
+        return results
+
+    def _execute_group_sequential(
+        self,
+        assignments: list[dict],
+        user_request: str,
+        prior_context: dict[str, str],
+    ) -> list[dict[str, Any]]:
+        """Execute a group of agent assignments sequentially."""
         results = []
         for assignment in assignments:
-            agent_id = assignment.get("agent_id", "")
-            task = assignment.get("task", state["user_request"])
+            result = self._run_single_agent(assignment, user_request, prior_context)
+            results.append(result)
+        return results
 
-            agent = self._agents.get(agent_id)
-            if not agent:
-                results.append({
-                    "agent_id": agent_id,
-                    "agent_name": "Unknown",
-                    "task_description": f"Agent '{agent_id}' not found in registry.",
-                    "result": f"Error: No agent registered with ID '{agent_id}'.",
-                    "status": "error",
-                })
-                continue
+    def _run_single_agent(
+        self,
+        assignment: dict,
+        user_request: str,
+        prior_context: dict[str, str],
+    ) -> dict[str, Any]:
+        """Execute a single agent assignment with error isolation.
 
-            try:
-                logger.info("Executing agent: %s (task: %s)", agent.name, task[:80])
-                agent_start = time.time()
-                result = agent.invoke(task)
-                agent_elapsed = round(time.time() - agent_start, 2)
-                result.setdefault("metadata", {})["orchestrator_elapsed_seconds"] = agent_elapsed
-                results.append(result)
-            except Exception as e:
-                logger.error("Agent %s failed: %s: %s", agent_id, type(e).__name__, e)
-                results.append({
-                    "agent_id": agent_id,
-                    "agent_name": agent.name,
-                    "task_description": task,
-                    "result": f"Error during execution: {type(e).__name__}: {e}",
-                    "status": "error",
-                })
+        This method is safe to call from multiple threads concurrently.
+        Each invocation uses the agent's invoke() which creates its own local state.
+        """
+        agent_id = assignment.get("agent_id", "")
+        task = assignment.get("task", user_request)
 
-        return {"agent_results": results}
+        agent = self._agents.get(agent_id)
+        if not agent:
+            return {
+                "agent_id": agent_id,
+                "agent_name": "Unknown",
+                "task_description": f"Agent '{agent_id}' not found in registry.",
+                "result": f"Error: No agent registered with ID '{agent_id}'.",
+                "status": "error",
+            }
+
+        context = dict(prior_context) if prior_context else None
+
+        try:
+            logger.info("Executing agent: %s (task: %s)", agent.name, task[:80])
+            agent_start = time.time()
+            result = agent.invoke(task, context)
+            agent_elapsed = round(time.time() - agent_start, 2)
+            result.setdefault("metadata", {})["orchestrator_elapsed_seconds"] = agent_elapsed
+            return result
+        except Exception as e:
+            logger.error("Agent %s failed: %s: %s", agent_id, type(e).__name__, e)
+            return {
+                "agent_id": agent_id,
+                "agent_name": agent.name,
+                "task_description": task,
+                "result": f"Error during execution: {type(e).__name__}: {e}",
+                "status": "error",
+            }
 
     def _aggregate_results(self, state: OrchestratorState) -> dict[str, Any]:
         """Combine results from all agents into a cohesive final response."""
         results = state["agent_results"]
         routing = state["routing_decision"]
+        parallel_meta = state.get("parallel_metadata", {})
 
         parts = []
         parts.append(f"## Orchestrator Analysis\n{routing.get('analysis', 'N/A')}\n")
 
         success_count = sum(1 for r in results if r.get("status") == "success")
         error_count = sum(1 for r in results if r.get("status") == "error")
-        parts.append(f"**Agents executed:** {len(results)} | ✅ {success_count} succeeded | ❌ {error_count} failed\n")
+
+        # Execution mode summary
+        exec_mode = parallel_meta.get("execution_mode", "sequential")
+        wall_time = parallel_meta.get("total_wall_time_seconds", 0)
+        cpu_time = parallel_meta.get("total_cpu_time_seconds", 0)
+        time_saved = round(cpu_time - wall_time, 2) if cpu_time > wall_time else 0
+
+        parts.append(
+            f"**Agents executed:** {len(results)} | ✅ {success_count} succeeded | ❌ {error_count} failed\n"
+            f"**Execution mode:** {exec_mode} | ⏱ Wall time: {wall_time}s"
+        )
+        if time_saved > 0:
+            parts.append(f" | ⚡ Saved ~{time_saved}s via parallel execution")
+        parts.append("\n")
+
+        # Priority group breakdown
+        for group in parallel_meta.get("priority_groups", []):
+            mode_label = "⚡ parallel" if group.get("parallel") else "→ sequential"
+            parts.append(
+                f"  Priority {group['priority']}: [{', '.join(group['agents'])}] "
+                f"({mode_label}, {group['wall_time_seconds']}s)\n"
+            )
+
+        # Inter-agent communication log
+        comm_log = self._communication_bus.get_message_log_summary()
+        if comm_log:
+            parts.append("\n**🔗 Inter-Agent Communication:**\n")
+            for msg in comm_log:
+                parts.append(
+                    f"  {msg['from']} → {msg['to']} [{msg['type']}]: "
+                    f"{msg['content_preview'][:100]}\n"
+                )
 
         for result in results:
             status_icon = "✅" if result["status"] == "success" else "❌"
@@ -313,6 +519,7 @@ class OrchestratorAgent:
             "agent_results": [],
             "final_response": "",
             "error": None,
+            "parallel_metadata": {},
         }
         return self._graph.invoke(initial_state)
 

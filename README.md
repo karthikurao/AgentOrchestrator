@@ -1,23 +1,36 @@
 # Agent Orchestrator 🤖
 
-A multi-agent system with a master orchestrator controlling 10 specialized AI agents for software development and security analysis tasks.
+A multi-agent system with a **parallel master orchestrator** controlling 10 specialized AI agents for software development and security analysis tasks. Agents run concurrently and can communicate with each other.
 
 ## Architecture
 
 ```
-User Input (CLI)
-       │
-       ▼
-┌─────────────────────┐
-│  Orchestrator Agent  │  (Master — routes requests, aggregates responses)
-└─────┬───────────────┘
-      │
-      ▼
-┌──────────────────────────────────────────────────────────────────────────┐
-│  Code Reviewer │ Bug Analyzer │ Architecture │ Testing │ Security       │
-│  Documentation │ Refactoring │ DevOps │ Performance │ Exploit Analyzer │
-└──────────────────────────────────────────────────────────────────────────┘
+                      ┌─────────────────────┐
+                      │  Master Orchestrator │
+                      └────────┬────────────┘
+                               │
+                     ┌─────────┴──────────┐
+                     │ AgentCommunicationBus │
+                     │ (thread-safe broker)  │
+                     └─────────┬──────────┘
+                               │
+         ┌─────────────────────┼─────────────────────┐
+         │                     │                      │
+   Priority Group 1      Priority Group 1       Priority Group 2
+   (⚡ parallel)         (⚡ parallel)          (waits for group 1)
+  ┌──────────┐          ┌──────────┐           ┌──────────┐
+  │ Agent A  │◄────────►│ Agent B  │           │ Agent C  │
+  └──────────┘  direct  └──────────┘           └──────────┘
+       │          delegation                        │
+       └──── can also delegate via master ──────────┘
 ```
+
+### Execution Model
+
+- **Priority-grouped parallelism** — Agents at the same priority level run concurrently using `ThreadPoolExecutor`
+- **Barrier between groups** — Higher-priority groups complete before lower-priority groups start
+- **Context passing** — Results from earlier groups are available as context for later groups
+- **Inter-agent communication** — Any agent can delegate to any other agent during execution
 
 ## Agents
 
@@ -33,6 +46,50 @@ User Input (CLI)
 | 8 | **DevOps/CI-CD** | Pipeline review, Dockerfile analysis, deployment strategy |
 | 9 | **Performance** | Bottleneck identification, query optimization, caching |
 | 10 | **Exploit Analyzer** | Attack surface mapping, exploit chains, CVSS scoring, threat modeling |
+
+## Parallel Execution
+
+When the orchestrator routes a request to multiple agents, it groups them by priority and executes same-priority agents **in parallel**:
+
+```
+Request: "Review code quality and check for security issues"
+
+  ⚡ Priority 1 (parallel):
+     ├── Code Reviewer  ──┐
+     └── Security Agent ──┤── both run concurrently
+                          │
+  → Priority 2 (sequential, waits for group 1):
+     └── Exploit Analyzer ── runs after group 1 completes
+```
+
+### Parallel Settings
+
+| Setting | Env Variable | Default | Description |
+|---------|-------------|---------|-------------|
+| Parallel execution | `PARALLEL_EXECUTION` | `true` | Enable/disable parallel agent execution |
+| Max parallel agents | `MAX_PARALLEL_AGENTS` | `4` | Maximum concurrent agent threads |
+| Max delegation depth | `MAX_DELEGATION_DEPTH` | `3` | Max inter-agent recursion depth |
+
+## Inter-Agent Communication
+
+Agents can communicate with each other during execution through two modes:
+
+### 1. Direct Delegation
+An agent directly invokes another specialist agent:
+```
+Code Reviewer → delegate_to_agent("security", "Check this auth code for SQL injection")
+                → Security Agent executes and returns result
+```
+
+### 2. Master-Mediated Routing
+An agent routes a task through the orchestrator for intelligent dispatch:
+```
+Bug Analyzer → request_via_orchestrator("Analyze performance of this database query")
+               → Orchestrator classifies → dispatches to Performance Agent
+```
+
+### Recursion Protection
+A configurable max delegation depth (default: 3) prevents infinite agent-to-agent loops. The `AgentCommunicationBus` tracks delegation depth per-thread.
 
 ## Exploit Analyzer — Offensive Security Features
 
@@ -74,6 +131,12 @@ The **Exploit Analyzer** agent (agent #10) performs offensive security analysis 
    copy .env.example .env
    # Edit .env with your GITHUB_TOKEN
    ```
+4. (Optional) Configure parallel settings in `.env`:
+   ```env
+   PARALLEL_EXECUTION=true
+   MAX_PARALLEL_AGENTS=4
+   MAX_DELEGATION_DEPTH=3
+   ```
 
 ## Usage
 
@@ -105,3 +168,5 @@ python -m cli.main
 - **Python 3.11+** with LangChain + LangGraph
 - **GitHub Copilot** via GitHub Models API
 - **Rich** for terminal UI
+- **ThreadPoolExecutor** for parallel agent execution
+- **AgentCommunicationBus** for inter-agent messaging

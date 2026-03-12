@@ -26,18 +26,45 @@ class BaseAgent(ABC):
     - Automatic retries on transient failures
     - Structured output with task descriptions, confidence, and metadata
     - Pre/post processing hooks for specialist agents
+    - Inter-agent communication via AgentCommunicationBus
     """
 
     def __init__(self, agent_id: str, name: str, tools: list | None = None) -> None:
         self.agent_id = agent_id
         self.name = name
-        self.tools = tools or []
+        self.tools = list(tools or [])
         self._tool_map: dict[str, Any] = {t.name: t for t in self.tools}
         self._llm = ChatOpenAI(**settings.get_llm_kwargs())
+        self._communication_bus = None
+        self._rebuild_llm_with_tools()
+
+    def _rebuild_llm_with_tools(self) -> None:
+        """Rebuild the tool-bound LLM instance from the current tool list."""
         if self.tools:
             self._llm_with_tools = self._llm.bind_tools(self.tools)
         else:
             self._llm_with_tools = self._llm
+
+    # ------------------------------------------------------------------
+    # Communication bus integration
+    # ------------------------------------------------------------------
+
+    def set_communication_bus(self, bus: Any) -> None:
+        """Attach a communication bus, injecting inter-agent delegation tools.
+
+        When a bus is attached, the agent gains two additional tools:
+        - delegate_to_agent: directly invoke another specialist agent
+        - request_via_orchestrator: route a task through the master orchestrator
+        """
+        from tools.agent_tools import create_agent_tools
+
+        self._communication_bus = bus
+        comm_tools = create_agent_tools(bus, self.agent_id)
+        for t in comm_tools:
+            if t.name not in self._tool_map:
+                self.tools.append(t)
+                self._tool_map[t.name] = t
+        self._rebuild_llm_with_tools()
 
     # ------------------------------------------------------------------
     # Abstract / hook methods
