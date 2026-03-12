@@ -1,6 +1,6 @@
-# Agent Orchestrator 🤖
+# Cortex 🧠
 
-A multi-agent system with a **parallel master orchestrator** controlling 10 specialized AI agents for software development and security analysis tasks. Agents run concurrently and can communicate with each other.
+A **parallel multi-agent orchestration system** with 10 specialized AI agents for software development and security analysis. Agents run concurrently and can communicate with each other.
 
 ## Architecture
 

@@ -1,4 +1,4 @@
-"""Global configuration and settings for the Agent Orchestrator."""
+"""Global configuration and settings for Cortex."""
 
 import os
 from dataclasses import dataclass, field

@@ -1,4 +1,4 @@
-"""CLI interface for the Agent Orchestrator — Rich-based interactive terminal."""
+"""CLI interface for Cortex — Rich-based interactive terminal."""
 
 import os
 import sys
@@ -20,12 +20,11 @@ from config.settings import settings
 console = Console()
 
 BANNER = r"""
-    _                    _    ___           _               _             _
-   / \   __ _  ___ _ __ | |_ / _ \ _ __ ___| |__   ___  ___| |_ _ __ __ _| |_ ___  _ __
-  / _ \ / _` |/ _ \ '_ \| __| | | | '__/ __| '_ \ / _ \/ __| __| '__/ _` | __/ _ \| '__|
- / ___ \ (_| |  __/ | | | |_| |_| | | | (__| | | |  __/\__ \ |_| | | (_| | || (_) | |
-/_/   \_\__, |\___|_| |_|\__|\___/|_|  \___|_| |_|\___||___/\__|_|  \__,_|\__\___/|_|
-        |___/
+   ____           _
+  / ___|___  _ __| |_ _____  __
+ | |   / _ \| '__| __/ _ \ \/ /
+ | |__| (_) | |  | ||  __/>  <
+  \____\___/|_|   \__\___/_/\_\
 """
 
 HELP_TEXT = """
@@ -45,10 +44,10 @@ def display_banner() -> None:
     console.print(Text(BANNER, style="bold cyan"))
     console.print(
         Panel(
-            "[bold]Multi-Agent Orchestrator[/bold] — Master-Slave Architecture\n"
+            "[bold]Cortex[/bold] — Parallel Multi-Agent Orchestration\n"
             "Powered by GitHub Copilot via GitHub Models API\n"
             "Type [bold green]/help[/bold green] for commands or enter a request.",
-            title="🤖 Agent Orchestrator v1.0",
+            title="🧠 Cortex v2.0",
             border_style="cyan",
             box=box.DOUBLE,
         )

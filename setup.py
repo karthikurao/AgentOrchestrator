@@ -1,14 +1,14 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="agent-orchestrator",
-    version="1.0.0",
-    description="Multi-Agent Orchestrator System with Master-Slave Architecture",
+    name="cortex",
+    version="2.0.0",
+    description="Cortex — Parallel Multi-Agent Orchestration System",
     packages=find_packages(),
     python_requires=">=3.11",
     entry_points={
         "console_scripts": [
-            "agent-orchestrator=cli.main:main",
+            "cortex=cli.main:main",
         ],
     },
 )
