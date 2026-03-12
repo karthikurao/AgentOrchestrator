@@ -36,6 +36,7 @@ HELP_TEXT = """
 - Type any request in natural language to route it to specialist agents
 - `/agents` — List all available specialist agents
 - `/preview <request>` — Preview which agents would handle your request
+- `/exploit [path]` — Quick exploit scan on a directory (default: current directory)
 - `/help` — Show this help message
 - `/clear` — Clear the screen
 - `/quit` or `/exit` — Exit the application
@@ -120,6 +121,7 @@ def display_results(state: dict) -> None:
         status_icon = "✅" if result["status"] == "success" else "❌"
         border = "green" if result["status"] == "success" else "red"
         metadata = result.get("metadata", {})
+        severity = result.get("severity_summary", {})
 
         # Build metadata subtitle
         meta_parts = []
@@ -128,6 +130,19 @@ def display_results(state: dict) -> None:
         if "tool_iterations" in metadata:
             meta_parts.append(f"🔧 {metadata['tool_iterations']} tool iterations")
         meta_str = f"  ({' | '.join(meta_parts)})" if meta_parts else ""
+
+        # Severity banner for security-related agents
+        if severity and severity.get("total_findings", 0) > 0:
+            sev = severity
+            sev_level = sev.get("overall", "CLEAN")
+            sev_color = {"CRITICAL": "bold red", "HIGH": "red", "MEDIUM": "yellow", "LOW": "green"}.get(sev_level, "dim")
+            sev_text = (
+                f"[{sev_color}]Risk: {sev_level}[/{sev_color}] — "
+                f"🔴 {sev.get('critical', 0)} Critical | 🟠 {sev.get('high', 0)} High | "
+                f"🟡 {sev.get('medium', 0)} Medium | 🟢 {sev.get('low', 0)} Low | "
+                f"💡 {sev.get('informational', 0)} Info"
+            )
+            console.print(Panel(sev_text, title="🛡️ Severity Summary", border_style=sev_color, box=box.SIMPLE))
 
         # Task description panel
         console.print(Panel(
@@ -169,7 +184,7 @@ def run_interactive() -> None:
     with console.status("[bold cyan]Initializing agents...", spinner="dots"):
         orchestrator = OrchestratorAgent()
 
-    console.print("[green]✓ All 9 specialist agents initialized and ready.[/green]\n")
+    console.print("[green]✓ All 10 specialist agents initialized and ready.[/green]\n")
 
     # REPL
     while True:
@@ -205,6 +220,27 @@ def run_interactive() -> None:
                     display_routing_preview(routing)
                 else:
                     console.print("[red]Usage: /preview <your request>[/red]")
+                continue
+
+            if user_input.lower().startswith("/exploit"):
+                target_path = user_input[8:].strip() or "."
+                exploit_request = (
+                    f"Perform a full exploit-oriented security assessment on the project at '{target_path}'. "
+                    "Run all automated security scans (secrets, injection sinks, unsafe deserialization, "
+                    "crypto weaknesses, path traversal, attack surface mapping), construct exploit chains, "
+                    "calculate CVSS v3.1 scores, build a STRIDE threat model, and provide proof-of-concept "
+                    "exploit scenarios with remediation for every finding."
+                )
+                console.print(Panel(
+                    f"🎯 Running exploit analysis on: [bold]{target_path}[/bold]",
+                    border_style="red",
+                ))
+                with console.status(
+                    "[bold red]🔍 Exploit Analyzer scanning for vulnerabilities...",
+                    spinner="dots",
+                ):
+                    state = orchestrator.invoke(exploit_request)
+                display_results(state)
                 continue
 
             # Process request through orchestrator

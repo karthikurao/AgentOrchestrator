@@ -65,6 +65,9 @@ You MUST respond with **valid JSON only**. No text before or after the JSON obje
 6. For vague requests like "look at this code", default to code_reviewer.
 7. Do NOT assign more than 4 agents to a single request — focus is better than breadth.
 8. Only use valid agent_id values from the registry above.
+9. For requests mentioning exploits, attacks, penetration testing, CVSS, threat modeling, or offensive security, ALWAYS include exploit_analyzer.
+10. For requests about hardcoded secrets, injection vulnerabilities, or deserialization, include BOTH security AND exploit_analyzer.
+11. When exploit_analyzer is used with security, give exploit_analyzer higher priority (priority 1) since it performs automated scanning that informs the security review.
 
 ## Examples
 

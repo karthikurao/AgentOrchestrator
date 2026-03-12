@@ -256,6 +256,42 @@ AGENT_REGISTRY: list[AgentInfo] = [
             "connection pool", "async", "batch", "pagination",
         ],
     ),
+    AgentInfo(
+        name="Exploit Analyzer",
+        agent_id="exploit_analyzer",
+        description=(
+            "Performs offensive security analysis to find exploitable vulnerabilities and "
+            "construct attack chains. Uses CVSS v3.1 scoring, STRIDE threat modeling, and "
+            "proof-of-concept exploit scenarios. Scans for injection sinks, unsafe deserialization, "
+            "hardcoded secrets, cryptographic weaknesses, path traversal, and supply chain risks. "
+            "Chains multiple low-severity findings into critical attack paths."
+        ),
+        capabilities=[
+            "Attack surface enumeration and entry point mapping",
+            "Exploit chain construction (chaining vulnerabilities)",
+            "CVSS v3.1 base score calculation for every finding",
+            "STRIDE threat modeling (Spoofing, Tampering, Repudiation, Info Disclosure, DoS, EoP)",
+            "Proof-of-concept exploit scenario descriptions",
+            "Automated injection sink detection (SQL, XSS, command, LDAP, SSTI)",
+            "Unsafe deserialization scanning (pickle, YAML, eval — RCE vectors)",
+            "Hardcoded secrets and credential scanning",
+            "Cryptographic weakness detection (weak hash, broken cipher, insecure PRNG)",
+            "Path traversal and open redirect detection",
+            "Authentication and authorization bypass analysis",
+            "Supply chain and dependency vulnerability assessment",
+            "Post-exploitation impact analysis",
+            "Remediation with defense-in-depth recommendations",
+        ],
+        keywords=[
+            "exploit", "attack", "penetration", "pentest", "offensive", "red team",
+            "attack surface", "attack chain", "exploit chain", "CVSS", "STRIDE",
+            "threat model", "proof of concept", "PoC", "RCE", "remote code execution",
+            "injection", "deserialization", "secrets", "credentials", "hardcoded",
+            "path traversal", "open redirect", "SSRF", "XSS", "SQL injection",
+            "command injection", "privilege escalation", "lateral movement",
+            "supply chain", "OWASP", "CWE", "vulnerability", "hack", "breach",
+        ],
+    ),
 ]
 
 

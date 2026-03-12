@@ -10,9 +10,9 @@ from config.agent_registry import AgentRegistry, AgentInfo
 class TestAgentRegistry:
     """Tests for the AgentRegistry class."""
 
-    def test_registry_has_9_agents(self):
+    def test_registry_has_10_agents(self):
         registry = AgentRegistry()
-        assert len(registry.list_all()) == 9
+        assert len(registry.list_all()) == 10
 
     def test_all_agent_ids_are_unique(self):
         registry = AgentRegistry()
@@ -49,6 +49,7 @@ class TestAgentRegistry:
     @pytest.mark.parametrize("agent_id", [
         "code_reviewer", "bug_analyzer", "architecture", "testing",
         "security", "documentation", "refactoring", "devops", "performance",
+        "exploit_analyzer",
     ])
     def test_each_agent_is_registered(self, agent_id):
         registry = AgentRegistry()
@@ -107,6 +108,7 @@ class TestOrchestratorAgentLookup:
         from agents.refactoring import RefactoringAgent
         from agents.devops import DevOpsAgent
         from agents.performance import PerformanceAgent
+        from agents.exploit_analyzer import ExploitAnalyzerAgent
 
         agent_classes = {
             "code_reviewer": CodeReviewerAgent,
@@ -118,6 +120,7 @@ class TestOrchestratorAgentLookup:
             "refactoring": RefactoringAgent,
             "devops": DevOpsAgent,
             "performance": PerformanceAgent,
+            "exploit_analyzer": ExploitAnalyzerAgent,
         }
 
         registry = AgentRegistry()

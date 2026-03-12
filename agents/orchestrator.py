@@ -23,6 +23,7 @@ from agents.documentation import DocumentationAgent
 from agents.refactoring import RefactoringAgent
 from agents.devops import DevOpsAgent
 from agents.performance import PerformanceAgent
+from agents.exploit_analyzer import ExploitAnalyzerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class OrchestratorAgent:
     VALID_AGENT_IDS = {
         "code_reviewer", "bug_analyzer", "architecture", "testing",
         "security", "documentation", "refactoring", "devops", "performance",
+        "exploit_analyzer",
     }
 
     def __init__(self) -> None:
@@ -77,6 +79,7 @@ class OrchestratorAgent:
             "refactoring": RefactoringAgent(),
             "devops": DevOpsAgent(),
             "performance": PerformanceAgent(),
+            "exploit_analyzer": ExploitAnalyzerAgent(),
         }
 
     def _build_graph(self) -> Any:

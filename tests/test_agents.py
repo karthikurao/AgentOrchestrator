@@ -17,6 +17,7 @@ class TestBaseAgentInterface:
         "agents.refactoring.RefactoringAgent",
         "agents.devops.DevOpsAgent",
         "agents.performance.PerformanceAgent",
+        "agents.exploit_analyzer.ExploitAnalyzerAgent",
     ])
     def agent_class_path(self, request):
         return request.param
@@ -56,7 +57,7 @@ class TestBaseAgentInterface:
 
     @patch("agents.base_agent.ChatOpenAI")
     def test_format_output_structure(self, mock_llm, agent_class_path):
-        """format_output should return a dict with required keys."""
+        """format_output should return a dict with required keys including severity."""
         cls = self._import_agent_class(agent_class_path)
         agent = cls()
         output = agent.format_output(
@@ -69,6 +70,9 @@ class TestBaseAgentInterface:
         assert output["task_description"] == "Test task"
         assert output["result"] == "Test result"
         assert output["status"] == "success"
+        assert "severity_summary" in output
+        assert "overall" in output["severity_summary"]
+        assert "total_findings" in output["severity_summary"]
 
 
 class TestAgentPrompts:
@@ -85,6 +89,7 @@ class TestAgentPrompts:
         ("prompts.refactoring_prompt", "REFACTORING_SYSTEM_PROMPT"),
         ("prompts.devops_prompt", "DEVOPS_SYSTEM_PROMPT"),
         ("prompts.performance_prompt", "PERFORMANCE_SYSTEM_PROMPT"),
+        ("prompts.exploit_analyzer_prompt", "EXPLOIT_ANALYZER_SYSTEM_PROMPT"),
     ])
     def test_prompt_exists_and_is_substantial(self, prompt_module, prompt_var):
         """Each prompt module should export a substantial system prompt."""

@@ -9,6 +9,10 @@ from tools.git_tools import git_status, git_diff, git_log
 from tools.code_analysis_tools import (
     find_imports, find_function_definitions, detect_code_smells, analyze_dependency_security,
 )
+from tools.security_tools import (
+    scan_for_secrets, detect_injection_sinks, analyze_attack_surface,
+    detect_unsafe_deserialization, check_crypto_weaknesses, detect_path_traversal,
+)
 
 
 class SecurityAgent(BaseAgent):
@@ -24,6 +28,10 @@ class SecurityAgent(BaseAgent):
     - Security header and CORS configuration analysis
     - Privilege escalation and broken access control detection
     - Data exposure in logs, errors, and API responses
+    - Automated injection sink detection (SQL, XSS, command, LDAP)
+    - Unsafe deserialization scanning (pickle, YAML, eval — RCE vectors)
+    - Path traversal and open redirect detection
+    - Attack surface enumeration
     """
 
     def __init__(self) -> None:
@@ -35,6 +43,9 @@ class SecurityAgent(BaseAgent):
                 git_status, git_diff, git_log,
                 find_imports, find_function_definitions, detect_code_smells,
                 analyze_dependency_security,
+                # Exploit-oriented security tools
+                scan_for_secrets, detect_injection_sinks, analyze_attack_surface,
+                detect_unsafe_deserialization, check_crypto_weaknesses, detect_path_traversal,
             ],
         )
 
@@ -45,14 +56,21 @@ class SecurityAgent(BaseAgent):
         return {
             "enriched_context": {
                 "security_scan_protocol": (
-                    "1. List the project structure to identify config files, env files, and entry points. "
-                    "2. Read requirements.txt / package.json and run analyze_dependency_security. "
-                    "3. Search for hardcoded secrets: search_in_files for 'password', 'secret', 'api_key', 'token'. "
-                    "4. Search for SQL/command injection patterns: search_in_files for 'execute(', 'subprocess', 'eval(', 'exec('. "
-                    "5. Read auth-related files and trace the authentication flow. "
-                    "6. Check for input validation on all user-facing endpoints. "
-                    "7. Inspect error handlers for data leakage. "
-                    "8. Review CORS, CSP, and security headers if applicable."
+                    "=== AUTOMATED SCANNING ===\n"
+                    "1. Run scan_for_secrets on the project root to find hardcoded credentials.\n"
+                    "2. Run detect_injection_sinks to find SQL/XSS/command injection points.\n"
+                    "3. Run detect_unsafe_deserialization to find RCE-capable deserialization.\n"
+                    "4. Run check_crypto_weaknesses to find weak hashing and broken crypto.\n"
+                    "5. Run detect_path_traversal to find file system vulnerabilities.\n"
+                    "6. Run analyze_attack_surface to map all entry points.\n"
+                    "\n"
+                    "=== MANUAL REVIEW ===\n"
+                    "7. Read requirements.txt / package.json and run analyze_dependency_security.\n"
+                    "8. Read auth-related files and trace the authentication flow.\n"
+                    "9. Check for input validation on all user-facing endpoints.\n"
+                    "10. Inspect error handlers for data leakage.\n"
+                    "11. Review CORS, CSP, and security headers if applicable.\n"
+                    "12. Check for privilege escalation and broken access control."
                 ),
             }
         }

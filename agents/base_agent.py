@@ -228,17 +228,50 @@ class BaseAgent(ABC):
     def format_output(
         self, task_description: str, result: str, status: str, metadata: dict | None = None,
     ) -> dict[str, Any]:
-        """Format the agent's output into a consistent structure."""
+        """Format the agent's output into a consistent structure with severity scoring."""
+        severity = self._assess_severity(result)
         output = {
             "agent_id": self.agent_id,
             "agent_name": self.name,
             "task_description": task_description,
             "result": result,
             "status": status,
+            "severity_summary": severity,
         }
         if metadata:
             output["metadata"] = metadata
         return output
+
+    def _assess_severity(self, result: str) -> dict[str, Any]:
+        """Assess the severity of findings based on output content markers."""
+        text = result.lower()
+        critical = text.count("🔴") + text.count("critical")
+        high = text.count("🟠") + text.count("high")
+        medium = text.count("🟡") + text.count("medium")
+        low = text.count("🟢") + text.count("low")
+        info = text.count("💡") + text.count("informational")
+
+        total = critical + high + medium + low + info
+        if critical > 0:
+            overall = "CRITICAL"
+        elif high > 0:
+            overall = "HIGH"
+        elif medium > 0:
+            overall = "MEDIUM"
+        elif low > 0 or info > 0:
+            overall = "LOW"
+        else:
+            overall = "CLEAN"
+
+        return {
+            "overall": overall,
+            "critical": critical,
+            "high": high,
+            "medium": medium,
+            "low": low,
+            "informational": info,
+            "total_findings": total,
+        }
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(id={self.agent_id}, name={self.name})>"
