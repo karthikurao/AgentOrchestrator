@@ -12,6 +12,11 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 
+try:
+    from langchain_nvidia_ai_endpoints import ChatNVIDIA
+except ImportError:
+    ChatNVIDIA = None
+
 from agents.architecture import ArchitectureAgent
 from agents.bug_analyzer import BugAnalyzerAgent
 from agents.code_reviewer import CodeReviewerAgent
@@ -77,10 +82,21 @@ class OrchestratorAgent:
 
     def __init__(self) -> None:
         self.registry = AgentRegistry()
-        self._llm = ChatOpenAI(**settings.get_llm_kwargs())
+        self._llm = self._create_llm()
         self._agents = self._initialize_agents()
         self._communication_bus = self._initialize_communication_bus()
         self._graph = self._build_graph()
+
+    def _create_llm(self) -> Any:
+        """Create the configured LLM client for orchestrator routing."""
+        if settings.llm_provider == "nvidia":
+            if ChatNVIDIA is None:
+                raise ImportError(
+                    "langchain-nvidia-ai-endpoints is required for LLM_PROVIDER=nvidia. "
+                    "Install it with: pip install langchain-nvidia-ai-endpoints"
+                )
+            return ChatNVIDIA(**settings.get_llm_kwargs())
+        return ChatOpenAI(**settings.get_llm_kwargs())
 
     def _initialize_agents(self) -> dict[str, Any]:
         """Create instances of all specialist agents."""

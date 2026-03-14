@@ -129,7 +129,20 @@ The **Exploit Analyzer** agent (agent #10) performs offensive security analysis 
 3. Configure environment:
    ```bash
    copy .env.example .env
-   # Edit .env with your GITHUB_TOKEN
+   # Edit .env with your provider settings and API key
+   ```
+   Provider options:
+   ```env
+   # Option 1: GitHub Models (default)
+   LLM_PROVIDER=github
+   GITHUB_TOKEN=your_github_token_here
+   MODEL_NAME=gpt-4o
+   API_BASE_URL=https://models.inference.ai.azure.com
+
+   # Option 2: NVIDIA NIM endpoint
+   LLM_PROVIDER=nvidia
+   NVIDIA_API_KEY=your_nvidia_api_key_here
+   MODEL_NAME=mistralai/mixtral-8x22b-instruct-v0.1
    ```
 4. (Optional) Configure parallel settings in `.env`:
    ```env
@@ -166,7 +179,7 @@ python -m cli.main
 
 ## Tech Stack
 - **Python 3.11+** with LangChain + LangGraph
-- **GitHub Copilot** via GitHub Models API
+- **GitHub Models** (`langchain-openai`) and **NVIDIA NIM** (`langchain-nvidia-ai-endpoints`)
 - **Rich** for terminal UI
 - **ThreadPoolExecutor** for parallel agent execution
 - **AgentCommunicationBus** for inter-agent messaging
