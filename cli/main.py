@@ -1,6 +1,7 @@
 """CLI interface for Cortex — Rich-based interactive terminal."""
 
 import os
+import re
 import sys
 
 # Add project root to path
@@ -38,6 +39,48 @@ HELP_TEXT = """
 - `/quit` or `/exit` — Exit the application
 """
 
+SHELL_COMMAND_PATTERNS = [
+    r"^\$env:",
+    r"^setx\b",
+    r"^python\s+-m\b",
+    r"^pip\b",
+    r"^cd\b",
+    r"^dir\b",
+    r"^ls\b",
+    r"^\.\\",
+    r"^&\s+.+\\activate\.ps1$",
+    r"^source\b",
+    r"^export\b",
+]
+
+
+def _provider_display_name() -> str:
+    """Return a human-readable provider label for the banner."""
+    if settings.llm_provider == "nvidia":
+        return "NVIDIA NIM"
+    return "GitHub Models API"
+
+
+def _setup_instructions() -> str:
+    """Return provider-specific setup guidance."""
+    if settings.llm_provider == "nvidia":
+        return (
+            "1. Copy `.env.example` to `.env`\n"
+            "2. Set `NVIDIA_API_KEY` in `.env` or your environment\n"
+            "3. Use a tool-capable NVIDIA model, e.g. `meta/llama-3.3-70b-instruct`"
+        )
+    return (
+        "1. Copy `.env.example` to `.env`\n"
+        "2. Set `GITHUB_TOKEN` in the `.env` file\n"
+        "3. Get a token at: https://github.com/settings/tokens"
+    )
+
+
+def _looks_like_shell_command(user_input: str) -> bool:
+    """Return True when the input appears to be a terminal command rather than a task."""
+    stripped = user_input.strip()
+    return any(re.match(pattern, stripped, re.IGNORECASE) for pattern in SHELL_COMMAND_PATTERNS)
+
 
 def display_banner() -> None:
     """Show the startup banner."""
@@ -45,7 +88,7 @@ def display_banner() -> None:
     console.print(
         Panel(
             "[bold]Cortex[/bold] — Parallel Multi-Agent Orchestration\n"
-            "Powered by GitHub Copilot via GitHub Models API\n"
+            f"Powered by GitHub Copilot via {_provider_display_name()}\n"
             "Type [bold green]/help[/bold green] for commands or enter a request.",
             title="🧠 Cortex v2.0",
             border_style="cyan",
@@ -217,9 +260,7 @@ def run_interactive() -> None:
         console.print(
             Panel(
                 f"[bold red]Configuration Error[/bold red]\n\n{e!s}\n\n"
-                "1. Copy `.env.example` to `.env`\n"
-                "2. Set your `GITHUB_TOKEN` in the `.env` file\n"
-                "3. Get a token at: https://github.com/settings/tokens",
+                f"{_setup_instructions()}",
                 title="⚠️  Setup Required",
                 border_style="red",
             )
@@ -238,6 +279,20 @@ def run_interactive() -> None:
             user_input = Prompt.ask("[bold cyan]>[/bold cyan]").strip()
 
             if not user_input:
+                continue
+
+            if _looks_like_shell_command(user_input):
+                console.print(
+                    Panel(
+                        "This looks like a shell command, not a Cortex task. Run it in PowerShell instead of pasting it at the `>` prompt.\n\n"
+                        "Examples:\n"
+                        "- `& .\\.venv\\Scripts\\Activate.ps1`\n"
+                        "- `python -m cli.main`\n"
+                        "- `$env:NVIDIA_API_KEY=...`",
+                        title="Terminal Command Detected",
+                        border_style="yellow",
+                    )
+                )
                 continue
 
             # Handle commands
